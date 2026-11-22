@@ -5137,6 +5137,123 @@ ORM (Object-Relational Mapper) হলো code এর object কে database tabl
 - Replica দিয়ে high availability, কিন্তু replica কোনোভাবেই backup এর বিকল্প নয়
 - PostgreSQL এ `pg_dump`/`pg_basebackup`, MongoDB তে `mongodump` ও Atlas snapshot
 
+## ১ক. Database Basics: আরও মৌলিক প্রশ্ন
+
+### Database কী? DBMS কী? RDBMS কী?
+- **Database**: সংগঠিতভাবে সংরক্ষিত data এর সংগ্রহ, যাতে সহজে খোঁজা, বদলানো ও পরিচালনা করা যায়।
+- **DBMS** (Database Management System): database তৈরি, সংরক্ষণ, query ও নিরাপত্তা পরিচালনার software। উদাহরণ: MongoDB, MySQL, PostgreSQL, Oracle।
+- **RDBMS** (Relational DBMS): data table (row ও column) আকারে রাখে এবং table গুলোর মধ্যে সম্পর্ক (primary/foreign key) থাকে। SQL ব্যবহার করে। উদাহরণ: PostgreSQL, MySQL, SQL Server, Oracle।
+
+সহজ কথায়: database হলো data, DBMS হলো তা সামলানোর software।
+
+### File system এর বদলে DBMS কেন ব্যবহার করি?
+File system এ (সাধারণ file, Excel) সমস্যা: data duplication, একসাথে অনেক user এ গোলমাল, নিরাপত্তা দুর্বল, জটিল query কঠিন, crash এ data নষ্ট।
+
+DBMS দেয়:
+
+- Data redundancy ও inconsistency কম
+- দ্রুত খোঁজা (index) ও জটিল query (SQL)
+- একাধিক user এর একসাথে নিরাপদ access (transaction, concurrency)
+- Constraint দিয়ে data integrity
+- Backup, recovery ও নিরাপত্তা (অনুমতি ব্যবস্থা)
+
+### Database, schema, table, row, column এর মধ্যে পার্থক্য কী?
+- **Database**: সব কিছুর ধারক
+- **Schema**: database এর ভেতরের কাঠামো বা namespace (table, view, function এর সংগ্রহ)। PostgreSQL এ একটি database এ একাধিক schema থাকতে পারে (`public` ডিফল্ট)।
+- **Table**: data এর সারণি (যেমন `users`)
+- **Row (record/tuple)**: table এর একটি এন্ট্রি
+- **Column (field/attribute)**: table এর একটি তথ্যের ধরন (যেমন `email`)
+
+### Entity, attribute, relation, tuple, degree ও cardinality কী?
+- **Entity**: বাস্তবের বস্তু বা ধারণা (Student, Order), সাধারণত একটি table
+- **Attribute**: entity এর বৈশিষ্ট্য (name, age), অর্থাৎ column
+- **Relation**: table (formal নাম)
+- **Tuple**: row
+- **Degree**: column এর সংখ্যা
+- **Cardinality** (table এর ক্ষেত্রে): row এর সংখ্যা। (সম্পর্কের ক্ষেত্রে cardinality মানে one-to-one, one-to-many ইত্যাদি। index এর ক্ষেত্রে মানে column এ আলাদা মানের সংখ্যা।)
+
+### Data integrity কী? কত ধরনের?
+Data এর সঠিকতা ও সামঞ্জস্য নিশ্চিত করা।
+
+- **Entity integrity**: প্রতিটি row আলাদা ও primary key `NULL` নয়
+- **Referential integrity**: foreign key সবসময় বৈধ parent row কে নির্দেশ করবে
+- **Domain integrity**: column এর মান বৈধ পরিসর/type এর ভেতরে (`CHECK`, data type, `NOT NULL`)
+- **User-defined integrity**: ব্যবসায়িক নিয়ম (trigger/constraint দিয়ে)
+
+### Super key, candidate key, composite key ও alternate key কী?
+- **Super key**: যেকোনো column গুচ্ছ যা row কে একক ভাবে চেনায় (অতিরিক্ত column ও থাকতে পারে)
+- **Candidate key**: ন্যূনতম super key (কোনো column বাদ দিলে আর unique থাকে না)
+- **Primary key**: candidate key দের মধ্যে যেটিকে প্রধান বানানো হয়
+- **Alternate key**: যেসব candidate key primary key হয়নি
+- **Composite key**: একাধিক column মিলে গঠিত key (যেমন `(student_id, course_id)`)
+- **Foreign key**: অন্য table এর primary key কে নির্দেশ করে
+
+### ER diagram কী?
+Entity-Relationship diagram। Database এর কাঠামো ছবির মাধ্যমে দেখানোর উপায়: entity (আয়তক্ষেত্র), attribute, এবং তাদের মধ্যে সম্পর্ক (one-to-one, one-to-many, many-to-many)। Table বানানোর আগে ডিজাইন বোঝাতে ও আলোচনা করতে কাজে লাগে (dbdiagram.io, draw.io, pgAdmin)।
+
+### SQL কী? SQL, MySQL আর PostgreSQL এর পার্থক্য কী?
+- **SQL** (Structured Query Language): relational database এর সাথে কথা বলার **ভাষা**
+- **MySQL, PostgreSQL**: সেই ভাষা বুঝে এমন **database system (software)**
+
+অর্থাৎ SQL হলো ভাষা, MySQL/PostgreSQL হলো তার implementation। প্রতিটির নিজস্ব কিছু অতিরিক্ত syntax ও feature আছে।
+
+### SQL এর সাধারণ data type গুলো কী কী? `CHAR` আর `VARCHAR` এর পার্থক্য কী?
+- সংখ্যা: `INT`, `BIGINT`, `NUMERIC/DECIMAL`, `FLOAT`
+- Text: `CHAR`, `VARCHAR`, `TEXT`
+- সত্য/মিথ্যা: `BOOLEAN`
+- তারিখ/সময়: `DATE`, `TIME`, `TIMESTAMP`
+- আরও: `UUID`, `JSON/JSONB`, `ARRAY` (PostgreSQL), `BYTEA` (binary)
+
+`CHAR(n)` সবসময় নির্দিষ্ট n দৈর্ঘ্য (খালি জায়গা space দিয়ে ভরে)। `VARCHAR(n)` সর্বোচ্চ n পর্যন্ত পরিবর্তনশীল দৈর্ঘ্য। PostgreSQL এ `TEXT` ও `VARCHAR` এর কার্যকারিতা প্রায় একই।
+
+### মৌলিক query এর অংশ গুলো কী কী? (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`, `LIKE`, `IN`, `BETWEEN`, alias)
+```sql
+SELECT name AS full_name, salary          -- AS দিয়ে alias
+FROM employees
+WHERE dept = 'IT'                          -- filter
+  AND salary BETWEEN 30000 AND 80000       -- পরিসর (দুই প্রান্ত সহ)
+  AND city IN ('Dhaka', 'Chattogram')      -- তালিকার যেকোনো একটি
+  AND name LIKE 'R%'                       -- R দিয়ে শুরু (% = যেকোনো অক্ষর, _ = একটি অক্ষর)
+ORDER BY salary DESC                       -- ASC (ডিফল্ট) বা DESC
+LIMIT 10 OFFSET 0;                         -- প্রথম ১০টি
+```
+
+### Data redundancy ও anomaly (insert/update/delete) কী?
+Redundancy মানে একই data অকারণে বারবার সংরক্ষণ। এর ফলে:
+
+- **Insert anomaly**: একটি তথ্য রাখতে গিয়ে অন্য অপ্রাসঙ্গিক তথ্য ও দিতে হয়
+- **Update anomaly**: এক জায়গায় বদলালে অন্য কপিগুলো পুরোনো থেকে যায় (অসঙ্গতি)
+- **Delete anomaly**: একটি row মুছলে অন্য প্রয়োজনীয় তথ্য ও হারিয়ে যায়
+
+Normalization দিয়ে এগুলো কমানো হয়।
+
+### Data dictionary/metadata কী?
+Data সম্পর্কে data। অর্থাৎ table, column, data type, index, constraint, user ইত্যাদির বিবরণ যা database নিজে রাখে। PostgreSQL এ `information_schema` ও `pg_catalog` এ দেখা যায়।
+
+```sql
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public';
+```
+
+### DBMS এর ধরন (model) গুলো কী কী?
+- **Hierarchical**: tree আকারে (parent-child), পুরোনো
+- **Network**: graph এর মতো, একাধিক parent
+- **Relational**: table ও সম্পর্ক (সবচেয়ে প্রচলিত)
+- **NoSQL**: document, key-value, column-family, graph
+- **Object-oriented**: object হিসেবে data সংরক্ষণ
+
+### Database architecture: 1-tier, 2-tier আর 3-tier কী?
+- **1-tier**: user সরাসরি database এ (একই মেশিনে)
+- **2-tier**: client application সরাসরি database server এর সাথে কথা বলে
+- **3-tier**: client → application/server (business logic) → database। আজকের web app এ এটাই প্রচলিত (React → Node/Next.js API → database)। নিরাপত্তা ও scale ভালো, কারণ browser কখনো সরাসরি database ছোঁয় না।
+
+### Database ভেতরে কীভাবে data সংরক্ষণ করে? (page, buffer pool)
+Disk এ data একটি নির্দিষ্ট আকারের **page/block** (PostgreSQL এ ডিফল্ট ৮KB) এ ভাগ করে রাখা হয়। Query এর সময় প্রয়োজনীয় page disk থেকে memory র **buffer pool/cache** এ আনা হয়। Memory তে থাকা page পড়া disk এর চেয়ে বহুগুণ দ্রুত। তাই "cache hit ratio" গুরুত্বপূর্ণ, আর index আছে মানে কম page পড়তে হয়। Crash থেকে বাঁচতে পরিবর্তন আগে **WAL/journal** এ লেখা হয়।
+
+### Cursor কী?
+Query এর ফলাফলকে একটি একটি করে row ধরে ঘোরার উপায় (বড় result এ সব একসাথে memory তে না এনে)। সাধারণত set-based SQL (একটি query) cursor এর চেয়ে দ্রুত, তাই শুধু দরকারে ব্যবহার করুন। Node.js এ বড় result এর জন্য `pg-cursor`/stream ব্যবহার করা যায়।
+
 ## ২. SQL ও PostgreSQL
 
 ### JOIN এর ধরনগুলো কী কী?
@@ -5344,6 +5461,260 @@ WHERE to_tsvector('english', title || ' ' || body) @@ plainto_tsquery('english',
 - PostgreSQL: বেশি standard মেনে চলে, উন্নত feature (JSONB, CTE, window function, array, custom type, extension যেমন PostGIS), জটিল query তে শক্তিশালী
 - MySQL: সহজ, read-heavy web app এ জনপ্রিয় ও দ্রুত, ব্যাপক hosting সুবিধা
 - Transaction/locking: দুটোই MVCC, default isolation আলাদা (PG: Read Committed, MySQL: Repeatable Read)
+
+## ২ক. Database Function (SQL Function)
+
+### SQL function কী? কত ধরনের?
+Function হলো এমন কাজ যা input নিয়ে একটি ফল ফেরত দেয়। মূল ধরন:
+
+- **Aggregate function**: অনেক row থেকে **একটি** মান (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`)
+- **Scalar function**: প্রতিটি row এর জন্য একটি মান (`UPPER`, `ROUND`, `NOW`)
+- **Window function**: row না ভেঙে একটি "window" এর উপর হিসাব (`ROW_NUMBER`, `RANK`, `LAG`)
+- **Set-returning function**: একাধিক row ফেরত দেয় (`generate_series`, `unnest`)
+- **User-defined function (UDF)**: নিজে লেখা function
+
+### Aggregate function গুলো কী কী? NULL এর সাথে কেমন আচরণ করে?
+- `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`
+- আরও: `STRING_AGG` (PostgreSQL; MySQL এ `GROUP_CONCAT`), `ARRAY_AGG`, `JSON_AGG`
+
+Aggregate সাধারণত **`NULL` বাদ দেয়** (`COUNT(*)` ছাড়া)। সব মান `NULL` হলে `SUM`/`AVG` `NULL` দেয়।
+
+```sql
+SELECT dept,
+       COUNT(*)                    AS total,
+       SUM(salary)                 AS payroll,
+       ROUND(AVG(salary), 2)       AS avg_sal,
+       MIN(salary), MAX(salary),
+       STRING_AGG(name, ', ' ORDER BY name) AS names
+FROM employees
+GROUP BY dept;
+```
+
+### Scalar function: string function গুলো কী কী?
+```sql
+SELECT UPPER('abc'), LOWER('ABC'), INITCAP('hello world');   -- ABC abc Hello World
+SELECT LENGTH('hello');                                      -- 5
+SELECT SUBSTRING('database' FROM 1 FOR 4);                   -- data
+SELECT LEFT('hello', 2), RIGHT('hello', 2);                  -- he lo
+SELECT TRIM('  hi  '), LTRIM('  hi'), RTRIM('hi  ');
+SELECT REPLACE('a-b-c', '-', '/');                           -- a/b/c
+SELECT POSITION('b' IN 'abc');                               -- 2
+SELECT SPLIT_PART('a@b.com', '@', 2);                        -- b.com
+SELECT CONCAT('a', NULL, 'b');                               -- ab
+SELECT 'a' || NULL || 'b';                                   -- NULL
+```
+
+লক্ষণীয়: PostgreSQL এ `||` এ কোনো অংশ `NULL` হলে পুরো ফল `NULL`, কিন্তু `CONCAT()` `NULL` উপেক্ষা করে। (MySQL এ `CONCAT` ও `NULL` পেলে `NULL` দেয়, `CONCAT_WS` উপেক্ষা করে।)
+
+### Scalar function: numeric function গুলো কী কী?
+```sql
+SELECT ROUND(3.14159, 2);   -- 3.14
+SELECT CEIL(4.1);           -- 5
+SELECT FLOOR(4.9);          -- 4
+SELECT ABS(-7);             -- 7
+SELECT MOD(10, 3);          -- 1
+SELECT POWER(2, 3);         -- 8
+SELECT SQRT(16);            -- 4
+SELECT RANDOM();            -- 0 থেকে 1 এর মধ্যে
+SELECT GREATEST(1, 5, 3), LEAST(1, 5, 3);   -- 5 1
+```
+
+### Scalar function: date ও time function গুলো কী কী?
+```sql
+SELECT NOW(), CURRENT_DATE, CURRENT_TIMESTAMP;
+SELECT DATE_TRUNC('month', NOW());                    -- মাসের শুরু
+SELECT EXTRACT(YEAR FROM NOW()), EXTRACT(DOW FROM NOW());
+SELECT NOW() + INTERVAL '7 days';
+SELECT AGE(NOW(), '1998-05-10');                      -- বয়স
+SELECT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI');          -- ফরম্যাট করা text
+SELECT TO_DATE('2025-01-31', 'YYYY-MM-DD');
+```
+
+### Conditional function গুলো কী কী? (`CASE`, `COALESCE`, `NULLIF`, `GREATEST`)
+- `CASE WHEN ... THEN ... ELSE ... END`: শর্ত অনুযায়ী মান
+- `COALESCE(a, b, c)`: প্রথম non-NULL
+- `NULLIF(a, b)`: সমান হলে `NULL`
+- `GREATEST` / `LEAST`: সবচেয়ে বড়/ছোট মান
+
+### Type conversion (`CAST`, `::`, `TO_CHAR`) কীভাবে করে?
+```sql
+SELECT CAST('123' AS INT);        -- SQL standard
+SELECT '123'::INT;                -- PostgreSQL সংক্ষিপ্ত রূপ
+SELECT 123::TEXT;
+SELECT TO_NUMBER('1,234.50', '9,999.99');
+SELECT created_at::DATE FROM orders;
+```
+ভুল format এ cast করলে error আসে, তাই user input আগে যাচাই করুন।
+
+### Aggregate function আর scalar function এর পার্থক্য কী?
+- **Scalar**: প্রতিটি row এর জন্য আলাদা ফল। Row এর সংখ্যা একই থাকে (`UPPER(name)`)।
+- **Aggregate**: অনেক row কে জড়ো করে **একটি** ফল (`SUM`), সাধারণত `GROUP BY` এর সাথে। `WHERE` এ aggregate ব্যবহার করা যায় না, `HAVING` এ করা যায়।
+
+### Window function আর aggregate function এর পার্থক্য কী?
+- Aggregate row গুলোকে group এ ভেঙে একটি row তে সংকুচিত করে।
+- Window function (`OVER (...)`) প্রতিটি row রেখে দেয় এবং তার পাশে হিসাব করা মান দেয়।
+
+```sql
+-- aggregate: প্রতি dept এ একটি row
+SELECT dept, AVG(salary) FROM employees GROUP BY dept;
+
+-- window: প্রতিটি employee এর পাশে তার dept এর গড়
+SELECT name, dept, salary,
+       AVG(salary) OVER (PARTITION BY dept) AS dept_avg,
+       salary - AVG(salary) OVER (PARTITION BY dept) AS diff
+FROM employees;
+```
+
+### Aggregate এ `FILTER` ও conditional aggregation কী?
+শর্ত মেলা row গুলোর উপরেই aggregate চালানো।
+
+```sql
+-- PostgreSQL FILTER
+SELECT COUNT(*) AS total,
+       COUNT(*) FILTER (WHERE status = 'paid') AS paid,
+       SUM(total) FILTER (WHERE status = 'paid') AS paid_amount
+FROM orders;
+
+-- সব database এ: CASE দিয়ে
+SELECT SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END) FROM orders;
+```
+
+### `ROLLUP`, `CUBE`, `GROUPING SETS` কী?
+এক query তে একাধিক স্তরের subtotal/grand total বের করার উপায়।
+
+```sql
+SELECT region, product, SUM(amount)
+FROM sales
+GROUP BY ROLLUP (region, product);
+-- (region, product), (region), এবং মোট (grand total), তিন স্তরই আসে
+```
+
+- `ROLLUP`: ক্রমানুসারে subtotal (বিভাগ, উপবিভাগ, মোট)
+- `CUBE`: সব সম্ভাব্য সমন্বয়
+- `GROUPING SETS`: যে group গুলো চান নিজে নির্দিষ্ট করা
+
+### User-defined function (UDF) PostgreSQL এ কীভাবে লেখে?
+```sql
+-- সহজ SQL function
+CREATE OR REPLACE FUNCTION discounted(price numeric, pct numeric DEFAULT 10)
+RETURNS numeric
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT price - (price * pct / 100)
+$$;
+
+SELECT discounted(1000, 15);   -- 850
+
+-- PL/pgSQL (logic সহ)
+CREATE OR REPLACE FUNCTION order_status(total numeric)
+RETURNS text
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF total >= 10000 THEN RETURN 'VIP';
+  ELSIF total >= 1000 THEN RETURN 'Regular';
+  ELSE RETURN 'New';
+  END IF;
+END;
+$$;
+```
+
+### Function এর volatility (`IMMUTABLE`, `STABLE`, `VOLATILE`) কী? কেন গুরুত্বপূর্ণ?
+- **IMMUTABLE**: একই input এ সবসময় একই ফল (`ROUND`, `LOWER`)। Expression index এ এটাই লাগে।
+- **STABLE**: একটি query এর ভেতরে একই ফল (`NOW()`, table পড়া function)
+- **VOLATILE** (ডিফল্ট): প্রতিবার আলাদা ফল দিতে পারে (`RANDOM()`, side effect আছে)
+
+ঠিকভাবে লেবেল দিলে planner ভালো optimize করতে পারে, কিন্তু ভুল label দিলে ভুল ফল আসতে পারে।
+
+### Function, stored procedure আর trigger এর পার্থক্য কী?
+- **Function**: মান ফেরত দেয়, query এর ভেতরে (`SELECT fn()`) ব্যবহার করা যায়।
+- **Procedure**: `CALL` দিয়ে চালাতে হয়, ভেতরে transaction control (`COMMIT`) দেওয়া যায় (PostgreSQL 11+)।
+- **Trigger**: কোনো ঘটনায় (`INSERT/UPDATE/DELETE`) স্বয়ংক্রিয়ভাবে চলে। ভেতরে একটি trigger function থাকে।
+
+### Query এ function ব্যবহার করলে index কেন কাজ করে না? কীভাবে ঠিক করবে?
+`WHERE LOWER(email) = 'a@b.com'` এ column এর উপর function চালানোয় সাধারণ index ব্যবহার করা যায় না। সমাধান:
+
+- শর্ত এমনভাবে লেখা যাতে column খালি থাকে (SARGable)
+- **Expression (function-based) index**: `CREATE INDEX ON users (LOWER(email));` (function অবশ্যই `IMMUTABLE`)
+- Citext type ব্যবহার
+
+### UDF এর performance সমস্যা কী?
+UDF প্রতিটি row এ আলাদাভাবে চলে, ভারী হলে query অনেক ধীর হয়। Planner ভেতরে কী হচ্ছে বুঝতে পারে না (ছোট `LANGUAGE sql` function কখনো inline হয়)। সম্ভব হলে function এর বদলে সাধারণ JOIN/set-based SQL বা CTE ব্যবহার করুন।
+
+### Deterministic আর non-deterministic function কী?
+- **Deterministic**: একই input এ সর্বদা একই ফল (`UPPER`, `ROUND`)
+- **Non-deterministic**: একই input এ আলাদা ফল (`NOW()`, `RANDOM()`, `UUID()`)
+
+Index এ বা cache এ ব্যবহার করতে হলে deterministic হওয়া জরুরি।
+
+### Set-returning function (`generate_series`, `unnest`) কী?
+যে function একাধিক row ফেরত দেয়।
+
+```sql
+SELECT generate_series(1, 5);                        -- ১ থেকে ৫
+SELECT d::date FROM generate_series('2025-01-01'::date, '2025-01-07'::date, '1 day') d;
+SELECT unnest(ARRAY['a', 'b', 'c']);                 -- array কে row এ ভাঙে
+```
+
+### JSON function (PostgreSQL) গুলো কী কী?
+```sql
+SELECT data->>'name' FROM users;                              -- text আকারে
+SELECT data->'address'->>'city' FROM users;                   -- nested
+SELECT jsonb_build_object('id', id, 'name', name) FROM users; -- row থেকে JSON
+SELECT jsonb_agg(name) FROM users;                            -- JSON array
+SELECT * FROM users WHERE data @> '{"role":"admin"}';         -- contains
+```
+
+### String ও date function দিয়ে বাস্তব কয়েকটি query দাও
+```sql
+-- email থেকে domain
+SELECT SPLIT_PART(email, '@', 2) AS domain, COUNT(*) FROM users GROUP BY 1;
+
+-- নামের প্রথম অক্ষর বড়
+SELECT INITCAP(LOWER(name)) FROM users;
+
+-- মাসভিত্তিক order সংখ্যা
+SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) FROM orders GROUP BY 1 ORDER BY 1;
+
+-- গত ৭ দিনের order
+SELECT * FROM orders WHERE created_at >= NOW() - INTERVAL '7 days';
+
+-- মাসের শেষ দিন
+SELECT (DATE_TRUNC('month', NOW()) + INTERVAL '1 month - 1 day')::date;
+
+-- বয়স (বছরে)
+SELECT name, EXTRACT(YEAR FROM AGE(birthday)) AS age FROM users;
+```
+
+### MySQL আর PostgreSQL এর function এ মূল পার্থক্য কী?
+- Null সামলানো: MySQL `IFNULL(a, b)`, PostgreSQL `COALESCE` (দুই database ই `COALESCE` বোঝে)
+- String মেলানো: MySQL `GROUP_CONCAT`, PostgreSQL `STRING_AGG`
+- তারিখ ফরম্যাট: MySQL `DATE_FORMAT`, PostgreSQL `TO_CHAR`
+- বর্তমান সময়: MySQL `NOW()`, PostgreSQL `NOW()` বা `CURRENT_TIMESTAMP`
+- সীমা: দুটোতেই `LIMIT`; SQL Server এ `TOP`
+- `||` এর অর্থ: PostgreSQL এ string concat, MySQL এ ডিফল্টে logical OR
+
+### MongoDB তে SQL function এর সমতুল্য কী কী? (aggregation operator)
+- `COUNT/SUM/AVG/MIN/MAX` → `$sum`, `$avg`, `$min`, `$max` (`$group` এর ভেতরে)
+- `COUNT(*)` → `{ $sum: 1 }`
+- `STRING_AGG`/`ARRAY_AGG` → `$push`, `$addToSet`
+- `UPPER`/`CONCAT`/`SUBSTRING` → `$toUpper`, `$concat`, `$substrCP`
+- `CASE WHEN` → `$cond`, `$switch`
+- `COALESCE` → `$ifNull`
+- `TO_CHAR`/তারিখ → `$dateToString`, `$year`, `$month`, `$dateTrunc`
+- `ROUND` → `$round`
+- array এর আকার → `$size`
+
+```js
+db.orders.aggregate([
+  { $match: { status: "paid" } },
+  { $group: {
+      _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+      revenue: { $sum: "$total" },
+      avgOrder: { $avg: "$total" },
+      orders: { $sum: 1 },
+  } },
+  { $sort: { _id: 1 } },
+]);
+```
 
 ## ৩. MongoDB
 
@@ -5814,6 +6185,1254 @@ Message গুলো conversation এর ভেতরে embed না করে 
 - Schema নমনীয়, nested document, দ্রুত পরিবর্তন, বিশাল write scale: **MongoDB**
 - দ্বিধায় থাকলে PostgreSQL ভালো ডিফল্ট, কারণ `JSONB` দিয়ে সে অনেক document-style কাজও করতে পারে
 - একটি system এ দুটো মিশিয়েও ব্যবহার করা যায় (যেমন order PostgreSQL এ, activity log MongoDB তে)
+
+## ৭. Query Optimization
+
+### How do you optimize a SQL query? (সংক্ষিপ্ত checklist)
+আন্দাজে নয়, আগে **মাপুন**, তারপর বদলান।
+
+- ধীর query শনাক্ত করুন (`pg_stat_statements`, slow query log)
+- `EXPLAIN ANALYZE` দিয়ে plan দেখুন (কোথায় সময় যাচ্ছে)
+- বড় table এ **Seq Scan** থাকলে উপযুক্ত **index** দিন
+- `SELECT *` এর বদলে শুধু দরকারি column আনুন
+- `WHERE` এ index ব্যবহারযোগ্য (SARGable) শর্ত লিখুন
+- JOIN এর column এ index দিন, অকারণ JOIN সরান
+- `OFFSET` pagination এর বদলে keyset pagination
+- N+1 query ঠিক করুন (batch/JOIN)
+- Statistics পুরোনো হলে `ANALYZE`, আর table bloat হলে `VACUUM`
+- ভারী ও বারবার চলা query তে cache, materialized view বা denormalization
+- পরিবর্তনের আগে ও পরে সময় মেপে তুলনা করুন
+
+**Interview answer:** "I start by identifying the slow query using pg_stat_statements or slow query logs, then run EXPLAIN ANALYZE to see where the time goes. Typically I add or fix indexes, select only needed columns, write SARGable conditions, fix N+1 queries, use keyset pagination, and refresh statistics. For heavy repeated queries I consider caching or materialized views. I always measure before and after."
+
+### `SELECT *` কেন এড়াতে বলা হয়?
+- অপ্রয়োজনীয় column আনায় network, memory ও disk I/O বাড়ে
+- **Covering index / Index Only Scan** ব্যবহার করা যায় না (কারণ table এ যেতেই হয়)
+- Table এ নতুন column যোগ হলে (বিশেষ করে বড় `text`/`jsonb`) query ধীর হয়ে যায়
+- Code ভঙ্গুর হয় (column ক্রম বা সংখ্যা বদলালে)
+
+```sql
+-- খারাপ
+SELECT * FROM users WHERE id = 5;
+-- ভালো
+SELECT id, name, email FROM users WHERE id = 5;
+```
+
+### Index আছে তবু database সেটা ব্যবহার করছে না। কারণ কী কী?
+- Indexed column এ **function** ব্যবহার (`WHERE LOWER(email) = ...`)
+- `LIKE '%abc'` (শুরুতে wildcard)
+- **Type mismatch/implicit cast** (column এর type আর value এর type আলাদা)
+- Composite index এর **leftmost column** বাদ দিয়ে query
+- Query এর **selectivity কম** (অধিকাংশ row ই মিলে যাচ্ছে), তখন Seq Scan ই সস্তা
+- Table খুব ছোট (planner Seq Scan কে ভালো ভাবে)
+- Statistics পুরোনো (`ANALYZE` দরকার)
+- `OR` শর্ত, `!=`/`NOT IN` এর মতো শর্ত
+- Index এ লেখা ক্রম বা collation query এর সাথে মিলছে না
+
+### SARGable query কী?
+SARGable (Search ARGument able) মানে এমনভাবে শর্ত লেখা যাতে database **index ব্যবহার করতে পারে**। নিয়ম: indexed column কে `=`, `<`, `>`, `BETWEEN` এর **একপাশে খালি রাখুন**, function বা হিসাব ডান পাশে নিন।
+
+```sql
+-- খারাপ (index কাজ করে না)
+WHERE DATE(created_at) = '2025-01-01'
+WHERE amount * 1.1 > 100
+WHERE LOWER(email) = 'a@b.com'
+
+-- ভালো
+WHERE created_at >= '2025-01-01' AND created_at < '2025-01-02'
+WHERE amount > 100 / 1.1
+-- অথবা expression index
+CREATE INDEX idx_users_lower_email ON users (LOWER(email));
+```
+
+### Covering index আর `INCLUDE` কী? Index Only Scan কী?
+Query এর দরকারি সব column index এ থাকলে database table এ না গিয়ে শুধু index থেকেই উত্তর দেয়। একে **Index Only Scan** বলে। দ্রুত কারণ table এর page পড়তে হয় না।
+
+```sql
+CREATE INDEX idx_orders_user ON orders (user_id) INCLUDE (total, created_at);
+SELECT total, created_at FROM orders WHERE user_id = 5;
+```
+
+PostgreSQL এ `INCLUDE` (v11+)। Index Only Scan ঠিকমতো কাজ করতে `VACUUM` (visibility map) নিয়মিত চলা দরকার।
+
+### LIKE query কীভাবে optimize করবে?
+- `LIKE 'abc%'` (prefix) B-tree index ব্যবহার করতে পারে (non-C collation এ `text_pattern_ops` লাগে)
+- `LIKE '%abc%'` সাধারণ B-tree এ পারে না। PostgreSQL এ **`pg_trgm` extension** ও **GIN index** দিন
+- বড় ও জটিল text search এ full-text search (`tsvector`) বা Elasticsearch/Meilisearch
+
+```sql
+CREATE EXTENSION pg_trgm;
+CREATE INDEX idx_name_trgm ON products USING GIN (name gin_trgm_ops);
+SELECT * FROM products WHERE name ILIKE '%phone%';
+```
+
+### Index অতিরিক্ত দিলে কী সমস্যা? অব্যবহৃত index কীভাবে খুঁজবে?
+প্রতিটি index এর জন্য `INSERT/UPDATE/DELETE` এ বাড়তি কাজ ও storage লাগে। অনেক index দিলে write ধীর হয়। তাই অব্যবহৃত ও duplicate index সরান।
+
+```sql
+-- যে index কখনো ব্যবহার হয়নি
+SELECT relname, indexrelname, idx_scan
+FROM pg_stat_user_indexes
+WHERE idx_scan = 0
+ORDER BY pg_relation_size(indexrelid) DESC;
+```
+
+### `EXPLAIN ANALYZE` এর output কীভাবে পড়বে?
+প্রধান জিনিস:
+
+- **Seq Scan**: পুরো table পড়া (বড় table এ সন্দেহজনক)
+- **Index Scan / Index Only Scan**: index ব্যবহার (ভালো)
+- **Bitmap Index/Heap Scan**: অনেক row কিন্তু সব নয়, তখন
+- **cost**: আনুমানিক খরচ, **actual time**: আসল সময় (ms)
+- **rows (estimated) vs actual rows**: বড় পার্থক্য হলে statistics পুরোনো, `ANALYZE` চালান
+- সবচেয়ে ধীর node (যেখানে actual time বেশি) আগে ঠিক করুন
+- `EXPLAIN (ANALYZE, BUFFERS)` দিলে disk ও cache hit ও দেখা যায়
+
+সাবধান: `EXPLAIN ANALYZE` query সত্যিই চালায়। `UPDATE/DELETE` পরীক্ষা করতে `BEGIN; ... ROLLBACK;` এর ভেতরে চালান।
+
+### JOIN এর ধরন (nested loop, hash join, merge join) কী? কোনটা কখন?
+Planner তিন ধরনের join algorithm থেকে বেছে নেয়:
+
+- **Nested Loop**: ছোট table এর প্রতিটি row এর জন্য অন্যটিতে খোঁজা। ছোট result ও index থাকলে দ্রুত।
+- **Hash Join**: একটি table থেকে hash table বানিয়ে অন্যটি মেলানো। বড় table ও `=` join এ ভালো।
+- **Merge Join**: দুটোই sorted থাকলে একসাথে মেলানো। বড় sorted data তে।
+
+যে join ধীর সেখানে join column এ index আছে কিনা এবং statistics ঠিক আছে কিনা দেখুন।
+
+### JOIN query কীভাবে optimize করবে?
+- Join column এ index (বিশেষ করে foreign key, PostgreSQL এ foreign key তে নিজে থেকে index হয় না)
+- `WHERE` দিয়ে যত আগে সম্ভব row ছাঁটা
+- শুধু দরকারি column আনা
+- অপ্রয়োজনীয় JOIN সরানো, বা শুধু অস্তিত্ব দেখতে `EXISTS` ব্যবহার
+- Cartesian product (JOIN condition ভুলে যাওয়া) এড়ানো
+- খুব ভারী report এ pre-aggregate বা materialized view
+
+### `IN`, `EXISTS`, `NOT IN` ও JOIN এর মধ্যে optimization এর দৃষ্টিকোণ থেকে পার্থক্য কী?
+- `EXISTS`: প্রথম মিল পেলেই থামে, অস্তিত্ব দেখতে ভালো
+- `IN (subquery)`: ছোট list এ ঠিক আছে, বড় result এ ধীর হতে পারে
+- **`NOT IN`**: subquery তে `NULL` থাকলে **কোনো row ই ফেরত দেয় না** (বাগের সম্ভাবনা)। তাই `NOT EXISTS` ব্যবহার করুন।
+- JOIN: related table এর column ও দরকার হলে
+
+```sql
+-- বিপজ্জনক
+SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM orders);
+-- নিরাপদ
+SELECT * FROM users u
+WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);
+```
+
+### `COUNT(*)` বড় table এ ধীর কেন? বিকল্প কী?
+PostgreSQL এ MVCC এর কারণে row এর সংখ্যা আলাদা করে সংরক্ষিত থাকে না, তাই `COUNT(*)` কে row (বা index) স্ক্যান করতে হয়।
+
+বিকল্প:
+
+- আনুমানিক সংখ্যা চলবে এমন জায়গায় `pg_class.reltuples` (দ্রুত)
+- Counter column/table রাখা (trigger বা application দিয়ে আপডেট)
+- Filter এ index ঠিক করে Index Only Scan
+- UI তে "১০,০০০+" দেখানো, সঠিক মোট সংখ্যা না
+
+```sql
+SELECT reltuples::bigint AS approx FROM pg_class WHERE relname = 'orders';
+```
+
+### Pagination কীভাবে optimize করবে?
+`OFFSET` যত বড় হয় তত ধীর (database কে আগের সব row পড়ে ফেলে দিতে হয়)। **Keyset (cursor) pagination** এ শেষ দেখা id ধরে পরের অংশ আনা হয়, যা index ব্যবহার করে সবসময় দ্রুত।
+
+```sql
+-- ধীর
+SELECT * FROM posts ORDER BY created_at DESC, id DESC LIMIT 20 OFFSET 50000;
+-- দ্রুত
+SELECT * FROM posts
+WHERE (created_at, id) < ('2025-01-01 10:00', 9500)
+ORDER BY created_at DESC, id DESC
+LIMIT 20;
+-- সাথে index: (created_at DESC, id DESC)
+```
+
+### বড় পরিমাণ data insert/update কীভাবে দ্রুত করবে?
+- প্রতিটি row এর জন্য আলাদা `INSERT` না করে **multi-row insert** বা **batch**
+- বড় load এ `COPY` (সবচেয়ে দ্রুত)
+- একটি transaction এর ভেতরে অনেকগুলো (বারবার commit এড়ানো)
+- বড় import এর সময় index ও constraint সাময়িক সরিয়ে পরে আবার তৈরি
+- বড় update/delete ছোট batch এ ভাগ করা (lock ও WAL এর চাপ কমে)
+
+```sql
+INSERT INTO logs (user_id, action) VALUES (1,'a'), (2,'b'), (3,'c');
+COPY logs FROM '/path/logs.csv' WITH (FORMAT csv);
+```
+
+### Statistics, `ANALYZE` আর autovacuum query optimization এ কীভাবে সাহায্য করে?
+Planner row এর সংখ্যা ও মানের বণ্টন সম্পর্কে **statistics** দেখে plan ঠিক করে। Statistics পুরোনো হলে ভুল plan (যেমন index থাকলেও Seq Scan) নেয়। `ANALYZE` statistics আপডেট করে। `autovacuum` dead row সাফ করে table bloat কমায় এবং নিজে নিজে `ANALYZE` ও চালায়। বড় data পরিবর্তনের পর `ANALYZE` হাতে চালানো ভালো।
+
+### Table partitioning কীভাবে query দ্রুত করে?
+বড় table কে ভাগে (যেমন মাস অনুযায়ী) ভাঙলে query যদি partition key (তারিখ) দিয়ে filter করে, database শুধু প্রাসঙ্গিক partition ই পড়ে (**partition pruning**)। পুরোনো data মোছাও সহজ (partition drop)। সময়ভিত্তিক log/order table এ কাজের।
+
+```sql
+CREATE TABLE events (id bigint, created_at timestamptz, data jsonb)
+PARTITION BY RANGE (created_at);
+CREATE TABLE events_2025_01 PARTITION OF events
+  FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+```
+
+### Slow query কীভাবে খুঁজে বের করবে? (monitoring)
+- **PostgreSQL**: `pg_stat_statements` extension (কোন query কতবার ও কত সময় নিচ্ছে), `log_min_duration_statement` (ধীর query log), `auto_explain`
+- **MongoDB**: Database Profiler, Atlas Performance Advisor
+- Application এ APM (Datadog, New Relic) ও query logging
+
+```sql
+SELECT query, calls, mean_exec_time, total_exec_time
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;
+```
+
+### PostgreSQL এর কোন config গুলো performance এ প্রভাব ফেলে?
+- `shared_buffers`: PostgreSQL এর নিজস্ব cache (সাধারণত RAM এর প্রায় ২৫%)
+- `work_mem`: sort ও hash operation এর জন্য প্রতি operation এ memory (কম হলে disk এ নামে)
+- `effective_cache_size`: OS cache সহ মোট কত memory পাওয়া যাবে তার অনুমান (planner কে সাহায্য করে)
+- `max_connections`: বেশি হলে pooling (PgBouncer) বিবেচনা করুন
+- `random_page_cost`: SSD এ কমানো যায়
+
+এগুলো workload ও হার্ডওয়্যারের উপর নির্ভর করে, তাই বদলানোর আগে ও পরে মাপুন। প্রথমে query ও index ঠিক করা বেশি কার্যকর।
+
+### Database বাইরে থেকে কীভাবে চাপ কমাবে? (cache, materialized view, denormalization)
+- **Cache (Redis)**: বারবার চলা read query এর ফল TTL সহ রাখা
+- **Materialized view**: ভারী report এর ফল সংরক্ষণ করে নির্দিষ্ট সময় পর `REFRESH`
+- **Denormalization**: `comment_count`, `total_price` এর মতো হিসাব করা মান সংরক্ষণ
+- **Read replica**: read query কে replica তে পাঠানো
+- **Pre-aggregation**: রাতে বা background এ summary table বানানো
+
+### Bad query কে কীভাবে rewrite করে? (কয়েকটি উদাহরণ)
+```sql
+-- ১. OFFSET এর বদলে keyset (উপরে দেখুন)
+
+-- ২. OR এর বদলে UNION (প্রতিটির আলাদা index ব্যবহার)
+SELECT * FROM users WHERE email = 'a@b.com' OR phone = '017...';
+-- ভালো হতে পারে:
+SELECT * FROM users WHERE email = 'a@b.com'
+UNION
+SELECT * FROM users WHERE phone = '017...';
+
+-- ৩. অপ্রয়োজনীয় DISTINCT সরানো (join ঠিক করলে duplicate ই আসে না)
+
+-- ৪. Loop এ query (N+1) এর বদলে একটি query
+SELECT * FROM orders WHERE user_id = ANY($1);   -- $1 = [1,2,3,...]
+
+-- ৫. Subquery কে JOIN/CTE তে বদলে plan দেখা
+```
+প্রতিটি পরিবর্তনের পর `EXPLAIN ANALYZE` দিয়ে সত্যিই ভালো হয়েছে কিনা যাচাই করুন, কারণ planner প্রায়ই একই plan বানায়।
+
+### MongoDB query কীভাবে optimize করবে?
+- **Index** দিন এবং `explain("executionStats")` এ `COLLSCAN` এর বদলে `IXSCAN` নিশ্চিত করুন
+- **Compound index এ ESR rule** (Equality, Sort, Range)
+- **Projection** ব্যবহার করুন, শুধু দরকারি field আনুন
+- **`limit()`** দিন, অসীম result এড়ান
+- **Covered query**: query ও projection এর সব field index এ থাকলে (`_id` বাদ দিতে হয়)
+- বড় `skip()` এড়ান, range/cursor pagination (`_id > lastId`) ব্যবহার করুন
+- Unanchored regex (`/abc/`) ও `$where` এড়ান, `^abc` (anchored) index ব্যবহার করতে পারে
+- Index গুলো RAM এ ধরে এমন আকারে রাখুন (working set)
+- Unbounded array এড়ান (document অসীম বড় হওয়া)
+- `$lookup` কম ব্যবহার করুন, সম্ভব হলে data embed করুন
+
+```js
+db.orders.find({ userId: 5, status: "paid" }, { total: 1, createdAt: 1, _id: 0 })
+  .sort({ createdAt: -1 })
+  .limit(20)
+  .explain("executionStats");
+
+db.orders.createIndex({ userId: 1, status: 1, createdAt: -1 });  // ESR
+```
+
+### MongoDB aggregation pipeline কীভাবে optimize করবে?
+- **`$match` ও `$limit` যতটা সম্ভব আগে** রাখুন, যাতে index ব্যবহার হয় ও পরের stage এ কম data যায়
+- প্রথম stage এর `$match`/`$sort` index ব্যবহার করতে পারে (পরের stage এ পারে না)
+- `$project`/`$unset` দিয়ে অপ্রয়োজনীয় field আগেই সরান
+- `$lookup` এ foreign field এ index থাকা জরুরি
+- বড় `$group`/`$sort` এ memory সীমা (100MB) পার হলে `allowDiskUse: true`
+- ভারী ও বারবার চলা aggregation এর ফল সংরক্ষণ করুন (`$merge`/`$out`, pre-computed collection)
+
+### Mongoose এ query কীভাবে দ্রুত করবে?
+- **`lean()`**: সাধারণ JS object ফেরত দেয় (কম memory, দ্রুত)
+- **`select("name email")`**: শুধু দরকারি field
+- **`populate`** প্রতিটি আলাদা query চালায়, তাই কম ব্যবহার করুন বা শুধু দরকারি field populate করুন
+- Schema তে `index: true` দিন, কিন্তু production এ `autoIndex: false` রেখে migration দিয়ে index বানান
+- `limit()`/range pagination
+- N+1 এড়াতে `$in` দিয়ে একসাথে আনা বা aggregation `$lookup`
+
+```js
+const posts = await Post.find({ published: true })
+  .select("title author createdAt")
+  .populate("author", "name")
+  .sort({ createdAt: -1 })
+  .limit(20)
+  .lean();
+```
+
+### MongoDB তে slow query কীভাবে খুঁজবে?
+- **Database Profiler**: `db.setProfilingLevel(1, { slowms: 100 })` দিলে ১০০ms এর বেশি সময় নেওয়া query `system.profile` এ জমা হয়
+- `explain("executionStats")` দিয়ে `totalDocsExamined` বনাম `nReturned` তুলনা (পার্থক্য বড় হলে index দরকার)
+- MongoDB Atlas এ Performance Advisor ও Query Profiler
+- `db.currentOp()` দিয়ে চলমান ধীর operation দেখা
+
+### "২ সেকেন্ডের একটি query কে ২০ms এ নামিয়েছি", এমন একটি উদাহরণ কীভাবে বলবে?
+Interview এ **ধাপে ধাপে, সংখ্যা সহ** গল্প বলুন:
+
+- **সমস্যা**: dashboard এর অর্ডার list ২ সেকেন্ড নিচ্ছিল
+- **মাপা**: `pg_stat_statements` এ ধীর query পেলাম, `EXPLAIN ANALYZE` এ দেখলাম ৫০ লাখ row এ **Seq Scan** ও in-memory sort
+- **কারণ**: `WHERE user_id = ? ORDER BY created_at DESC` এর জন্য index ছিল না, আর `SELECT *` চলছিল
+- **সমাধান**: `(user_id, created_at DESC)` composite index, শুধু দরকারি column, আর `OFFSET` এর বদলে keyset pagination
+- **ফলাফল**: ২ সেকেন্ড থেকে ~২০ms। `EXPLAIN ANALYZE` এ **Index Scan** আর কোনো sort নেই
+- **সতর্কতা**: index এর জন্য write এর খরচ ও storage মেপে দেখলাম, অব্যবহৃত index সরালাম
+
+নিজের আসল প্রজেক্টের উদাহরণ বসান। সংখ্যা বানিয়ে বলবেন না।
+
+### Query optimization এর সময় সাধারণ ভুলগুলো কী?
+- না মেপে আন্দাজে index দেওয়া (এতে write ধীর হয়, কাজ হয় না)
+- Production এ `EXPLAIN ANALYZE` দিয়ে `UPDATE/DELETE` চালিয়ে ফেলা (সত্যিই চলে!)
+- Dev এর ছোট data তে পরীক্ষা করে ভাবা ঠিক আছে (বড় data তে আলাদা plan)
+- সব column এ index দেওয়া
+- Statistics পুরোনো থাকা অবস্থায় plan নিয়ে সিদ্ধান্ত
+- Cache এর জন্য প্রথমবার ধীর, পরেরবার দ্রুত দেখে ভুল সিদ্ধান্ত
+- Database এর বদলে application এ loop চালানো (N+1)
+
+## ৮. Locking, Concurrency ও Race Condition
+
+### Pessimistic locking আর optimistic locking এর পার্থক্য কী?
+- **Pessimistic**: "সংঘর্ষ হবেই" ধরে আগেই row lock করে নেয়। অন্য transaction কে অপেক্ষা করতে হয়। `SELECT ... FOR UPDATE`। Conflict বেশি হলে ভালো।
+- **Optimistic**: "সংঘর্ষ কম হবে" ধরে lock করে না। Update এর সময় `version` মিলিয়ে দেখে। না মিললে ব্যর্থ হয়, তখন retry। Conflict কম হলে ভালো ও দ্রুত।
+
+```sql
+-- pessimistic
+BEGIN;
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+COMMIT;
+
+-- optimistic (version column)
+UPDATE products
+SET stock = 9, version = version + 1
+WHERE id = 1 AND version = 4;     -- 0 row আপডেট হলে অন্য কেউ আগে বদলেছে, retry করুন
+```
+
+### Lost update সমস্যা কী? কীভাবে ঠিক করবে?
+দুটি transaction একই row পড়ে, নিজের মতো বদলে লেখে, ফলে একজনের পরিবর্তন অন্যজনের লেখায় হারিয়ে যায়।
+
+সমাধান:
+
+- সরাসরি atomic update: `SET stock = stock - 1` (পড়ে হিসাব করে লেখার বদলে)
+- `SELECT ... FOR UPDATE` দিয়ে lock
+- Optimistic locking (version column)
+- উঁচু isolation level (`REPEATABLE READ`/`SERIALIZABLE`) ও retry
+
+### Inventory/stock এ race condition কীভাবে এড়াবে? (flash sale)
+পড়ে, application এ হিসাব করে, তারপর লেখা বিপজ্জনক। এক statement এ শর্তসহ atomic update করুন:
+
+```sql
+UPDATE products
+SET stock = stock - 1
+WHERE id = 10 AND stock > 0;
+-- affected rows = 0 হলে stock শেষ, order দেবেন না
+```
+
+বাড়তি: transaction এ order insert ও stock কমানো একসাথে, আর খুব বেশি চাপে Redis (`DECR`) বা queue দিয়ে ক্রম ঠিক রাখা।
+
+### `SELECT ... FOR UPDATE`, `FOR SHARE`, `NOWAIT`, `SKIP LOCKED` কী?
+- `FOR UPDATE`: row exclusive lock, অন্য কেউ update বা lock করতে পারে না
+- `FOR SHARE`: shared lock, অন্যরা পড়তে ও share lock নিতে পারে কিন্তু বদলাতে পারে না
+- `NOWAIT`: lock না পেলে অপেক্ষা না করে সাথে সাথে error
+- `SKIP LOCKED`: যেসব row আগে থেকে lock করা সেগুলো বাদ দিয়ে বাকি আনে (queue এর জন্য)
+
+### PostgreSQL কে job queue হিসেবে কীভাবে ব্যবহার করবে?
+`FOR UPDATE SKIP LOCKED` দিয়ে একাধিক worker একই job দুইবার না নিয়ে নিরাপদে কাজ ভাগ করে নিতে পারে।
+
+```sql
+BEGIN;
+SELECT id, payload FROM jobs
+WHERE status = 'pending'
+ORDER BY id
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+-- কাজ করে:
+UPDATE jobs SET status = 'done' WHERE id = $1;
+COMMIT;
+```
+
+ছোট/মাঝারি চাপে ভালো। অনেক বড় scale এ আলাদা queue (RabbitMQ, SQS, BullMQ) ভালো।
+
+### Row lock আর table lock এর পার্থক্য কী?
+- **Row lock**: শুধু নির্দিষ্ট row আটকায়। বেশি concurrency।
+- **Table lock**: পুরো table আটকায়। কিছু DDL (যেমন `ALTER TABLE`) এ লাগে, PostgreSQL এ `ACCESS EXCLUSIVE` lock নেয় যা সব পড়া/লেখা আটকে দেয়।
+
+তাই production এ ভারী `ALTER TABLE` সাবধানে করতে হয় (`lock_timeout` দিন, বড় table এ `CREATE INDEX CONCURRENTLY`)।
+
+### Double booking (একই seat/room দুইজনে বুক) কীভাবে আটকাবে?
+- **Unique constraint**: `UNIQUE (seat_id, show_id)` দিলে database নিজেই duplicate আটকায় (সবচেয়ে নির্ভরযোগ্য)
+- **Row lock**: `SELECT ... FOR UPDATE` দিয়ে seat lock করে পরীক্ষা ও insert
+- **Exclusion constraint** (PostgreSQL): সময়ের overlap আটকাতে
+
+```sql
+CREATE EXTENSION btree_gist;
+CREATE TABLE bookings (
+  room_id int,
+  during tstzrange,
+  EXCLUDE USING gist (room_id WITH =, during WITH &&)
+);
+```
+
+Application এ "আগে check, পরে insert" লিখলে দুটি request একসাথে এলে ভুল হয়, তাই database স্তরে constraint রাখুন।
+
+### Idempotency কী? Database লেখায় কীভাবে নিশ্চিত করবে?
+একই request বারবার এলে (network retry, double click) ফল একবার চালানোর সমান থাকা। Payment/order এ জরুরি।
+
+```sql
+CREATE TABLE payments (
+  id bigserial PRIMARY KEY,
+  idempotency_key text UNIQUE NOT NULL,
+  amount numeric(12,2) NOT NULL
+);
+INSERT INTO payments (idempotency_key, amount) VALUES ($1, $2)
+ON CONFLICT (idempotency_key) DO NOTHING;
+```
+
+Client প্রতিটি আসল কাজের জন্য একটি unique key পাঠায়। Server আগের ফলই ফেরত দেয়।
+
+### PostgreSQL এ advisory lock কী?
+Application স্তরের নিজস্ব lock, কোনো row বা table এর সাথে বাঁধা নয়। `pg_advisory_lock(key)` দিয়ে কোনো কাজ (যেমন cron job, report তৈরি) একসাথে একটিই instance চালাচ্ছে তা নিশ্চিত করা যায়।
+
+### Serializable isolation এ কী হয়? Serialization failure এ কী করবে?
+`SERIALIZABLE` এ transaction গুলো যেন একটির পর একটি চলেছে এমন ফল দেয়। PostgreSQL conflict ধরলে একটি transaction কে error দিয়ে বাতিল করে (SQLSTATE `40001`)। Application কে **সেই transaction পুরোটা retry** করতে হয়। Deadlock এ error code `40P01`।
+
+### দীর্ঘ transaction (long-running transaction) কেন সমস্যা?
+- Lock ধরে রাখে, অন্যদের আটকায়
+- PostgreSQL এ পুরোনো row version সাফ হতে দেয় না, table bloat বাড়ে (VACUUM আটকে যায়)
+- `idle in transaction` অবস্থায় connection আটকে থাকে
+
+প্রতিকার: transaction ছোট রাখুন, ভেতরে বাইরের API call/অপেক্ষা করবেন না, `idle_in_transaction_session_timeout` ও `statement_timeout` দিন।
+
+## ৯. Schema Design ও Data Modeling
+
+### One-to-one, one-to-many আর many-to-many সম্পর্ক কীভাবে বানাবে?
+- **One-to-many**: "many" পাশের table এ foreign key (`orders.user_id`)
+- **One-to-one**: foreign key এ `UNIQUE` (`profiles.user_id UNIQUE`) অথবা একই primary key ভাগ করা
+- **Many-to-many**: মাঝে **junction (join) table**
+
+```sql
+CREATE TABLE student_courses (
+  student_id int REFERENCES students(id),
+  course_id  int REFERENCES courses(id),
+  enrolled_at timestamptz DEFAULT now(),
+  PRIMARY KEY (student_id, course_id)   -- composite key, duplicate আটকায়
+);
+```
+
+### Surrogate key আর natural key কী? কোনটা ভালো?
+- **Natural key**: বাস্তব জীবনের unique মান (email, NID, ISBN)। অর্থ আছে, কিন্তু বদলাতে পারে।
+- **Surrogate key**: কৃত্রিম id (auto-increment, UUID)। বদলায় না, ছোট, join দ্রুত।
+
+সাধারণত surrogate key কে primary key করা হয়, আর natural key তে `UNIQUE` constraint দেওয়া হয়।
+
+### টাকার (money) data কীভাবে সংরক্ষণ করবে?
+**কখনো `FLOAT`/`DOUBLE` নয়**, কারণ floating point এ ভুল জমে (`0.1 + 0.2 != 0.3`)। ব্যবহার করুন:
+
+- `NUMERIC(12,2)`/`DECIMAL` (সঠিক দশমিক)
+- অথবা সবচেয়ে ছোট একক পূর্ণসংখ্যা হিসেবে (পয়সা/সেন্ট) `BIGINT`, আর currency আলাদা column এ
+
+Currency কোড (`BDT`, `USD`) সংরক্ষণ করুন, আর rounding নিয়ম আগে থেকে ঠিক করুন।
+
+### `timestamp` আর `timestamptz` এর পার্থক্য কী? সময় কীভাবে রাখবে?
+- `timestamp`: timezone ছাড়া, যা দিয়েছেন তাই রাখে
+- `timestamptz`: UTC তে রূপান্তর করে সংরক্ষণ করে, দেখানোর সময় session timezone অনুযায়ী
+
+ভালো অভ্যাস: সবসময় **UTC তে `timestamptz`** রাখুন, শুধু UI তে ব্যবহারকারীর timezone এ দেখান।
+
+### Soft delete আর hard delete এর পার্থক্য কী?
+- **Hard delete**: row আসলেই মুছে ফেলা। সহজ, কিন্তু ফেরত আনা যায় না।
+- **Soft delete**: `deleted_at` (বা `is_deleted`) column এ চিহ্ন দেওয়া, row থাকে। Recovery ও audit সহজ।
+
+সমস্যা: প্রতিটি query তে `WHERE deleted_at IS NULL` লাগে (ভুলে গেলে মোছা data দেখা যায়), unique constraint ভাঙে, table বড় হয়।
+
+```sql
+CREATE UNIQUE INDEX uniq_active_email ON users (email) WHERE deleted_at IS NULL;
+```
+
+গোপনীয়তা আইন (GDPR) এ ব্যবহারকারী মুছতে বললে আসলে মুছতে বা anonymize করতে হতে পারে।
+
+### Audit field ও audit log কীভাবে রাখবে?
+- প্রতিটি table এ `created_at`, `updated_at`, চাইলে `created_by`, `updated_by`
+- কে কখন কী বদলেছে তার বিস্তারিত ইতিহাসের জন্য আলাদা **audit/history table** (trigger বা application দিয়ে): `table_name`, `row_id`, `action`, `old_data`, `new_data` (`jsonb`), `changed_by`, `changed_at`
+
+### Multi-tenancy (SaaS) এর জন্য database কীভাবে ডিজাইন করবে?
+- **Shared table + `tenant_id` column**: সবচেয়ে সস্তা ও সহজ। প্রতিটি query তে `tenant_id` ফিল্টার লাগে (ভুলে গেলে data leak)। PostgreSQL এ **Row Level Security** দিয়ে সুরক্ষা।
+- **Schema per tenant**: tenant ভিত্তিক আলাদা schema। ভালো বিচ্ছিন্নতা, কিন্তু অনেক tenant এ migration জটিল।
+- **Database per tenant**: সবচেয়ে বেশি বিচ্ছিন্নতা, কিন্তু খরচ ও পরিচালনা বেশি।
+
+ছোট/মাঝারি SaaS এ সাধারণত shared table + `tenant_id` + RLS।
+
+### Hierarchical data (category tree, comment thread) কীভাবে সংরক্ষণ করবে?
+- **Adjacency list**: `parent_id` column। সহজ, recursive CTE দিয়ে query।
+- **Materialized path**: `path = '/1/4/9'`। subtree খোঁজা সহজ (`LIKE '/1/4/%'`)।
+- **Nested set**: `lft`, `rgt` মান। পড়া দ্রুত, কিন্তু insert/move জটিল।
+- **Closure table**: সব পূর্বপুরুষ-বংশধর জোড়া আলাদা table এ। গভীর query দ্রুত।
+- PostgreSQL এ `ltree` extension ও আছে।
+
+### ছবি/ফাইল database এ রাখবে না কি অন্য কোথাও?
+সাধারণত **file কে object storage এ** (S3, Cloudinary, Cloudflare R2) রাখুন আর database এ শুধু URL/path ও metadata (size, type, owner)। Database এ বড় blob রাখলে size, backup ও query ধীর হয়ে যায়। ছোট ও কম সংখ্যক ফাইলে বা কঠোর transaction লাগলে ব্যতিক্রম হতে পারে।
+
+### Enum, lookup table আর `CHECK` constraint এর মধ্যে কোনটা কখন?
+- `CHECK (status IN ('pending','paid'))`: সহজ ও ছোট, মান কম বদলায়
+- **Lookup table** (`statuses` + foreign key): মান বদলায় বা বাড়ে, বাড়তি data (label, ক্রম) দরকার
+- **Enum type**: সুন্দর, কিন্তু মান সরানো/বদলানো কঠিন
+
+মান ঘন ঘন বদলালে lookup table সবচেয়ে নমনীয়।
+
+### JSONB column আর আলাদা normalized column এর মধ্যে কীভাবে বেছে নেবে?
+- জানা, নির্দিষ্ট, বারবার filter/join করা field: **আলাদা column** (index, constraint, type নিরাপত্তা)
+- পরিবর্তনশীল, ঐচ্ছিক বা প্রতি row এ আলাদা গঠনের data (settings, metadata): **`JSONB`**
+
+হাইব্রিড চলে: মূল field column এ, বাকিটা `JSONB` তে, আর দরকারি key তে GIN/expression index।
+
+### Counter (likes, views) বড় scale এ কীভাবে সামলাবে?
+প্রতিবার `UPDATE posts SET likes = likes + 1` করলে একই row এ বেশি চাপ পড়ে (hot row)। বিকল্প:
+
+- আলাদা `likes` table এ row insert করে `COUNT` (সঠিক কিন্তু ধীর হতে পারে)
+- Redis এ `INCR` করে নির্দিষ্ট সময় পর database এ batch লেখা
+- আনুমানিক সংখ্যা চললে async aggregation
+
+## ১০. SQL এর আরও প্রশ্ন
+
+### SQL এ `NULL` কীভাবে কাজ করে? কেন `= NULL` কাজ করে না?
+`NULL` মানে "অজানা মান", শূন্য বা খালি string নয়। SQL এ **three-valued logic** (true, false, unknown)। `NULL = NULL` এর ফল `true` নয়, `unknown`। তাই `IS NULL`/`IS NOT NULL` ব্যবহার করতে হয়।
+
+```sql
+SELECT * FROM users WHERE phone IS NULL;      -- ঠিক
+SELECT * FROM users WHERE phone = NULL;       -- কখনো row দেয় না
+```
+
+মনে রাখার বিষয়: `NULL` এর সাথে যেকোনো হিসাবের ফলও `NULL`, aggregate (`SUM`, `AVG`) `NULL` বাদ দেয়, `NOT IN` এ `NULL` থাকলে সমস্যা।
+
+### `COALESCE` আর `NULLIF` কী?
+- `COALESCE(a, b, c)`: প্রথম non-NULL মান দেয় (default মানের জন্য)
+- `NULLIF(a, b)`: `a = b` হলে `NULL` দেয়, নইলে `a` (শূন্য দিয়ে ভাগ এড়াতে)
+
+```sql
+SELECT COALESCE(nickname, name, 'Guest') FROM users;
+SELECT total / NULLIF(count, 0) FROM stats;   -- শূন্য দিয়ে ভাগ হবে না
+```
+
+### `COUNT(*)`, `COUNT(column)` আর `COUNT(DISTINCT column)` এর পার্থক্য কী?
+- `COUNT(*)`: সব row গোনে (NULL সহ)
+- `COUNT(column)`: ওই column এ non-NULL মান গোনে
+- `COUNT(DISTINCT column)`: আলাদা আলাদা non-NULL মান গোনে
+
+### DDL, DML, DCL, TCL আর DQL কী?
+- **DDL** (Data Definition): `CREATE`, `ALTER`, `DROP`, `TRUNCATE`
+- **DML** (Data Manipulation): `INSERT`, `UPDATE`, `DELETE`
+- **DQL** (Query): `SELECT`
+- **DCL** (Control): `GRANT`, `REVOKE`
+- **TCL** (Transaction): `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT`
+
+### `DISTINCT` আর `GROUP BY` এর পার্থক্য কী?
+দুটোই duplicate কমাতে পারে। `DISTINCT` শুধু একই row বাদ দেয়। `GROUP BY` group করে aggregate (`COUNT`, `SUM`) চালানোর সুযোগ দেয়। শুধু unique মান চাইলে `DISTINCT`, হিসাব চাইলে `GROUP BY`।
+
+### `CASE WHEN` কী? কোথায় ব্যবহার হয়?
+SQL এর if-else। Select, `ORDER BY`, aggregate এর ভেতরে ব্যবহার করা যায়।
+
+```sql
+SELECT name,
+  CASE
+    WHEN salary >= 100000 THEN 'High'
+    WHEN salary >= 50000  THEN 'Mid'
+    ELSE 'Low'
+  END AS band
+FROM employees;
+```
+
+### `INTERSECT` আর `EXCEPT` কী?
+- `INTERSECT`: দুই query তে **সাধারণ** row
+- `EXCEPT`: প্রথমটিতে আছে কিন্তু দ্বিতীয়টিতে নেই
+
+```sql
+SELECT user_id FROM orders_2024
+INTERSECT
+SELECT user_id FROM orders_2025;      -- দুই বছরেই order দিয়েছে
+```
+
+### Correlated subquery কী?
+এমন subquery যা বাইরের query এর প্রতিটি row এর উপর নির্ভর করে। প্রতিটি row এর জন্য আবার চলে, তাই ধীর হতে পারে। প্রায়ই JOIN বা window function দিয়ে দ্রুত করা যায়।
+
+```sql
+SELECT name, salary FROM employees e
+WHERE salary > (SELECT AVG(salary) FROM employees WHERE dept = e.dept);
+```
+
+### `LATERAL` join কী?
+PostgreSQL এ এমন join যেখানে ডান পাশের subquery বাম পাশের row এর column ব্যবহার করতে পারে। "প্রতিটি user এর সর্বশেষ ৩টি order" এর মতো কাজে কাজে লাগে।
+
+```sql
+SELECT u.id, o.*
+FROM users u
+CROSS JOIN LATERAL (
+  SELECT * FROM orders WHERE user_id = u.id ORDER BY created_at DESC LIMIT 3
+) o;
+```
+
+### `ON DELETE CASCADE`, `SET NULL`, `RESTRICT` কী?
+Parent row মুছলে child row এর কী হবে:
+
+- `CASCADE`: child ও মুছে যায়
+- `SET NULL`: child এর foreign key `NULL` হয়
+- `RESTRICT` / `NO ACTION`: child থাকলে parent মুছতে দেয় না (error)
+- `SET DEFAULT`: ডিফল্ট মান বসে
+
+ভুল করে `CASCADE` দিলে অনেক data হারিয়ে যেতে পারে, তাই সাবধান।
+
+### Clustered আর non-clustered index কী?
+- **Clustered**: table এর row গুলো physical ভাবে index এর ক্রমে সাজানো। Table এ একটাই। MySQL InnoDB এ primary key ই clustered index। SQL Server এও আছে।
+- **Non-clustered**: আলাদা structure, যা row এর অবস্থানের দিকে নির্দেশ করে।
+
+PostgreSQL এ সাধারণ table হলো "heap", সব index ই আলাদা (non-clustered ধরনের)। `CLUSTER` command একবার সাজাতে পারে কিন্তু নিজে বজায় রাখে না।
+
+### `SAVEPOINT` কী?
+Transaction এর ভেতরে একটি চেকপয়েন্ট। পুরো transaction বাতিল না করে শুধু ওই বিন্দু পর্যন্ত `ROLLBACK TO` করা যায়।
+
+```sql
+BEGIN;
+INSERT INTO a VALUES (1);
+SAVEPOINT sp1;
+INSERT INTO b VALUES (2);
+ROLLBACK TO sp1;       -- শুধু b এর insert বাতিল
+COMMIT;
+```
+
+### Stored procedure আর function এর পার্থক্য কী?
+- **Function**: মান ফেরত দেয়, `SELECT` এর ভেতরে ব্যবহার করা যায়
+- **Procedure** (PostgreSQL 11+): `CALL` দিয়ে চালাতে হয়, ভেতরে transaction control (`COMMIT`) দেওয়া যায়
+
+### Temporary table, CTE আর view এর মধ্যে কোনটা কখন?
+- **View**: সংরক্ষিত query, বারবার ব্যবহারের জন্য, data রাখে না
+- **CTE**: একটি query এর ভেতরে অস্থায়ী নামযুক্ত অংশ, পড়ার সুবিধার জন্য
+- **Temp table**: session এর জন্য সত্যিকারের table, যাতে index দেওয়া যায়। ভারী মাঝামাঝি ফল বারবার ব্যবহার করলে ভালো।
+
+### Cardinality আর selectivity কী? index এ কীভাবে প্রভাব ফেলে?
+- **Cardinality**: কোনো column এ কতগুলো আলাদা মান আছে (`id` এর উচ্চ, `gender` এর কম)
+- **Selectivity**: একটি শর্ত মোট row এর কত অল্প অংশ বেছে নেয় (যত অল্প, তত ভালো selectivity)
+
+উচ্চ selectivity ওয়ালা column এ index সবচেয়ে কার্যকর। `is_active` এর মতো দুই-মানের column এ সাধারণ index প্রায়ই কাজে লাগে না (partial index বিবেচনা করুন)।
+
+### তারিখ ও সময়ের কাজে PostgreSQL এর সাধারণ function গুলো কী কী?
+```sql
+SELECT now(), current_date;
+SELECT date_trunc('month', created_at) FROM orders;      -- মাসের শুরুতে রাউন্ড
+SELECT EXTRACT(YEAR FROM created_at) FROM orders;
+SELECT created_at + interval '7 days';
+SELECT age(now(), birthday);
+```
+
+## ১১. আরও Query অনুশীলন
+
+### প্রতিটি department এ সবচেয়ে বেশি salary পাওয়া employee
+```sql
+SELECT * FROM (
+  SELECT e.*, DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC) AS r
+  FROM employees e
+) t WHERE r = 1;
+```
+
+### প্রতিটি user এর সর্বশেষ order
+```sql
+-- ১. DISTINCT ON (PostgreSQL)
+SELECT DISTINCT ON (user_id) *
+FROM orders
+ORDER BY user_id, created_at DESC;
+
+-- ২. ROW_NUMBER (সব database এ)
+SELECT * FROM (
+  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) rn
+  FROM orders o
+) t WHERE rn = 1;
+```
+
+### পরপর কয়েকদিন login করা user (gaps and islands)
+```sql
+-- কমপক্ষে ৩ দিন টানা login
+SELECT user_id, MIN(d) AS start_day, MAX(d) AS end_day, COUNT(*) AS days
+FROM (
+  SELECT user_id, d,
+         d - (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY d))::int AS grp
+  FROM (SELECT DISTINCT user_id, login_date::date AS d FROM logins) x
+) y
+GROUP BY user_id, grp
+HAVING COUNT(*) >= 3;
+```
+কৌশল: তারিখ থেকে row number বিয়োগ করলে টানা তারিখগুলোর ফল একই থাকে।
+
+### Pivot: মাসভিত্তিক বিক্রি এক row তে (`CASE` দিয়ে)
+```sql
+SELECT product,
+  SUM(CASE WHEN EXTRACT(MONTH FROM sold_at) = 1 THEN amount ELSE 0 END) AS jan,
+  SUM(CASE WHEN EXTRACT(MONTH FROM sold_at) = 2 THEN amount ELSE 0 END) AS feb
+FROM sales
+GROUP BY product;
+```
+
+### আগের মাসের তুলনায় বৃদ্ধি (`LAG`)
+```sql
+SELECT month, revenue,
+       revenue - LAG(revenue) OVER (ORDER BY month) AS diff,
+       ROUND(100.0 * (revenue - LAG(revenue) OVER (ORDER BY month))
+             / NULLIF(LAG(revenue) OVER (ORDER BY month), 0), 2) AS pct
+FROM monthly_revenue;
+```
+
+### Median salary বের করো
+```sql
+SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY salary) AS median
+FROM employees;
+```
+
+### Sequence এ হারিয়ে যাওয়া id (gap) খুঁজে বের করো
+```sql
+SELECT g AS missing_id
+FROM generate_series((SELECT MIN(id) FROM items), (SELECT MAX(id) FROM items)) g
+LEFT JOIN items i ON i.id = g
+WHERE i.id IS NULL;
+```
+
+### যে user A এবং B দুটো product ই কিনেছে
+```sql
+SELECT user_id
+FROM purchases
+WHERE product_id IN (1, 2)
+GROUP BY user_id
+HAVING COUNT(DISTINCT product_id) = 2;
+```
+
+### যে department এর গড় salary সবচেয়ে বেশি
+```sql
+SELECT dept, AVG(salary) AS avg_sal
+FROM employees
+GROUP BY dept
+ORDER BY avg_sal DESC
+LIMIT 1;
+```
+
+### Duplicate row গুলো মোছো, সবচেয়ে নতুনটা রাখো (`ROW_NUMBER` দিয়ে)
+```sql
+DELETE FROM users
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY created_at DESC) rn
+    FROM users
+  ) t WHERE rn > 1
+);
+```
+
+### তিনটি table join করে প্রতিটি customer এর মোট খরচ
+```sql
+SELECT c.name, SUM(oi.quantity * oi.unit_price) AS total
+FROM customers c
+JOIN orders o       ON o.customer_id = c.id
+JOIN order_items oi ON oi.order_id = o.id
+GROUP BY c.id, c.name
+ORDER BY total DESC;
+```
+
+### গত ৩০ দিনে প্রতিদিনের order সংখ্যা (order না থাকলেও ০ দেখাও)
+```sql
+SELECT d::date AS day, COUNT(o.id) AS orders
+FROM generate_series(current_date - 29, current_date, interval '1 day') d
+LEFT JOIN orders o ON o.created_at::date = d::date
+GROUP BY d
+ORDER BY d;
+```
+
+### সব সময়ে সবচেয়ে বেশি বিক্রি হওয়া ৩টি product (সমান হলে সবাই)
+```sql
+SELECT product_id, qty FROM (
+  SELECT product_id, SUM(quantity) AS qty,
+         RANK() OVER (ORDER BY SUM(quantity) DESC) r
+  FROM order_items GROUP BY product_id
+) t WHERE r <= 3;
+```
+
+## ১২. Distributed Database, Consistency ও Reliability
+
+### Strong consistency আর eventual consistency এর পার্থক্য কী?
+- **Strong**: write এর পর যেকোনো read সবসময় সর্বশেষ মান পায়। সহজ বোঝা, কিন্তু ধীর/কম available হতে পারে।
+- **Eventual**: write এর পর কিছু সময় পর্যন্ত কিছু node পুরোনো মান দিতে পারে, শেষে সবাই একমত হয়। দ্রুত ও বেশি available।
+
+কোনটা বেছে নেবেন নির্ভর করে ব্যবসার উপর: ব্যাংক ব্যালেন্সে strong, social media like count এ eventual চলে।
+
+### Replication lag কী? Read-your-writes সমস্যা কীভাবে সামলাবে?
+Replica তে primary এর পরিবর্তন পৌঁছাতে সামান্য দেরি (lag) হতে পারে। ব্যবহারকারী লিখে সাথে সাথে replica থেকে পড়লে নিজের লেখাই দেখতে পায় না।
+
+সমাধান:
+
+- লেখার পর কিছু সময় ওই user এর read primary থেকে নেওয়া
+- গুরুত্বপূর্ণ read সবসময় primary থেকে
+- Replica এর lag মেপে lag বেশি হলে primary তে পাঠানো
+- Synchronous replication (ধীর কিন্তু lag নেই)
+
+### Synchronous আর asynchronous replication এর পার্থক্য কী?
+- **Synchronous**: primary replica র confirmation পাওয়ার পর commit করে। ডেটা হারানোর ঝুঁকি কম, কিন্তু ধীর।
+- **Asynchronous**: primary নিজে commit করে পরে replica তে পাঠায়। দ্রুত, কিন্তু primary ভেঙে পড়লে সাম্প্রতিক কিছু data হারাতে পারে।
+
+### Quorum কী? (`R + W > N`)
+`N` টি replica থাকলে write `W` টি তে এবং read `R` টি তে করলে যদি `R + W > N` হয়, তাহলে read অন্তত একটি সর্বশেষ কপি পাবে। Cassandra, DynamoDB এর মতো system এ এই নিয়ম প্রচলিত। MongoDB এ `w: "majority"` একই ধারণার উপর।
+
+### Distributed transaction কী? Two-Phase Commit (2PC) আর Saga এর পার্থক্য কী?
+একাধিক service/database এর উপর একটি transaction।
+
+- **2PC**: coordinator সবাইকে "prepare" করতে বলে, সবাই রাজি হলে "commit"। কঠোর consistency, কিন্তু coordinator ব্যর্থ হলে আটকে যায় (blocking) এবং ধীর।
+- **Saga**: কয়েকটি ছোট local transaction এর ধারা। কোনো ধাপ ব্যর্থ হলে আগের ধাপগুলোর **ক্ষতিপূরক (compensating) কাজ** চালানো হয় (যেমন payment ফেরত)। Microservice এ বেশি প্রচলিত, eventual consistency।
+
+### Outbox pattern কী?
+Database এ data লেখা আর message queue তে event পাঠানো একসাথে নিশ্চিত করার উপায়। Business data ও event একই local transaction এ `outbox` table এ লেখা হয়। আলাদা একটি process সেই table থেকে পড়ে queue তে পাঠায়। এতে "database এ লেখা হলো কিন্তু event হারিয়ে গেল" সমস্যা এড়ানো যায়।
+
+### CQRS আর event sourcing কী?
+- **CQRS**: write (command) আর read (query) এর মডেল আলাদা করা। Read এর জন্য আলাদা, দ্রুত, denormalized store রাখা যায়।
+- **Event sourcing**: বর্তমান অবস্থা না রেখে সব ঘটনা (event) ক্রমানুসারে সংরক্ষণ করা, যেকোনো সময় অবস্থা পুনর্নির্মাণ করা যায়।
+
+দুটোই জটিল, তাই সত্যিকারের প্রয়োজন ছাড়া ব্যবহার করা উচিত নয়।
+
+### Consistent hashing কী? কেন লাগে?
+Sharding এ data কে node গুলোর মধ্যে এমনভাবে ভাগ করা যাতে node যোগ/বাদ দিলে **খুব কম data** স্থানান্তর করতে হয়। সাধারণ `hash(key) % N` এ `N` বদলালে প্রায় সব key এর জায়গা বদলে যায়। Cassandra, DynamoDB, Redis Cluster ধরনের system এ এ ধারণা ব্যবহৃত।
+
+### Hot partition/hot shard কী? কীভাবে এড়াবে?
+কোনো একটি shard এ অসমান বেশি চাপ পড়া (যেমন সময়ের ক্রমে বাড়তে থাকা key, বা একজন জনপ্রিয় user এর data)। এড়াতে: ভালো shard key (উচ্চ cardinality), hashed key, জনপ্রিয় key কে ভেঙে ভাগ করা, cache।
+
+### Failover কী? RPO আর RTO কী?
+Primary ব্যর্থ হলে স্বয়ংক্রিয়ভাবে replica কে নতুন primary করা (failover)। PostgreSQL এ Patroni বা managed service, MongoDB তে replica set election।
+
+- **RPO** (Recovery Point Objective): সর্বোচ্চ কতটা data হারানো সহনীয় (সময়ে)
+- **RTO** (Recovery Time Objective): সর্বোচ্চ কতক্ষণে system আবার চালু হতে হবে
+
+**Split-brain**: network ভাগ হয়ে দুটি node নিজেকে primary ভাবা। Quorum ও fencing দিয়ে এড়ানো হয়।
+
+## ১৩. Redis ও Caching
+
+### Redis কী? কেন এত দ্রুত?
+Redis হলো in-memory key-value data store। Data RAM এ থাকে, তাই দ্রুত। এর command execution সাধারণত single-threaded, ফলে প্রতিটি command atomic। ব্যবহার: cache, session, rate limiting, leaderboard, queue, pub/sub।
+
+### Redis এর data type গুলো কী কী? কোনটা কোথায়?
+- **String**: সাধারণ value, counter (`INCR`), cache
+- **Hash**: object এর field (user profile)
+- **List**: queue/stack (`LPUSH`, `RPOP`)
+- **Set**: unique মান, tag, "কে কে online"
+- **Sorted Set**: score সহ ক্রমবদ্ধ, **leaderboard**, rate limiting
+- **Bitmap/HyperLogLog**: কম জায়গায় গণনা (daily active user, unique visitor আনুমানিক)
+- **Stream**: log/event queue (consumer group সহ)
+
+### Redis এ persistence কীভাবে হয়? RDB আর AOF এর পার্থক্য কী?
+- **RDB**: নির্দিষ্ট সময় পর পর snapshot। ছোট file, দ্রুত restart, কিন্তু শেষ snapshot এর পরের data হারাতে পারে।
+- **AOF**: প্রতিটি write operation log এ লেখা। বেশি টেকসই, কিন্তু ফাইল বড় ও কিছুটা ধীর।
+- দুটোই একসাথে ব্যবহার করা যায়। শুধু cache হলে persistence বন্ধও রাখা যায়।
+
+### Redis memory ভরে গেলে কী হয়? Eviction policy গুলো কী?
+`maxmemory` পার হলে policy অনুযায়ী key সরানো হয়:
+
+- `noeviction`: নতুন write এ error
+- `allkeys-lru`: সব key এর মধ্যে সবচেয়ে কম সাম্প্রতিক ব্যবহৃত মোছে (cache এর জন্য জনপ্রিয়)
+- `volatile-lru`: শুধু TTL দেওয়া key থেকে
+- `allkeys-lfu`: সবচেয়ে কম ঘন ঘন ব্যবহৃত
+- `volatile-ttl`: TTL শেষ হওয়ার কাছাকাছি key আগে
+
+### Cache pattern গুলো কী কী? (cache-aside, write-through, write-behind)
+- **Cache-aside (lazy loading)**: app আগে cache এ দেখে, না পেলে DB থেকে এনে cache এ রাখে। সবচেয়ে প্রচলিত।
+- **Write-through**: লেখার সময় cache ও DB দুটোতেই একসাথে লেখে। Cache সবসময় সতেজ, কিন্তু লেখা ধীর।
+- **Write-behind**: আগে cache এ লিখে পরে async এ DB তে। লেখা দ্রুত, কিন্তু cache ভেঙে গেলে data হারানোর ঝুঁকি।
+
+```js
+async function getUser(id) {
+  const cached = await redis.get(`user:${id}`);
+  if (cached) return JSON.parse(cached);              // hit
+  const user = await db.user.findById(id);            // miss
+  await redis.set(`user:${id}`, JSON.stringify(user), "EX", 300);  // TTL ৫ মিনিট
+  return user;
+}
+```
+
+### Cache stampede (thundering herd) কী? কীভাবে এড়াবে?
+জনপ্রিয় key এর TTL শেষ হলে একসাথে অনেক request cache miss পেয়ে সবাই একই সাথে database এ ধাক্কা দেয়।
+
+সমাধান:
+
+- **Mutex/lock**: একটি request ই database থেকে আনে, বাকিরা অপেক্ষা করে
+- TTL এ **random jitter** দেওয়া, যাতে সব key একসাথে মেয়াদ না হারায়
+- **Stale-while-revalidate**: পুরোনো মান দেখিয়ে background এ নতুন করা
+- জনপ্রিয় key আগে থেকেই গরম (pre-warm) করে রাখা
+
+### Cache penetration আর cache avalanche কী?
+- **Penetration**: যে key আসলে নেই (ভুল/ক্ষতিকর id) তা বারবার চাওয়া, প্রতিবার cache miss হয়ে সরাসরি database এ যায়। সমাধান: খালি ফলও (`null`) অল্প TTL দিয়ে cache করা, **Bloom filter**, input যাচাই।
+- **Avalanche**: অনেক key একই সময়ে মেয়াদ শেষ হওয়া বা cache server বন্ধ হওয়া, ফলে database এ হঠাৎ চাপ। সমাধান: TTL এ jitter, cache এর high availability (replica/cluster), rate limit।
+
+### Redis দিয়ে rate limiting কীভাবে করবে?
+সহজ fixed window: `INCR` ও `EXPIRE`।
+
+```js
+async function allow(userId, limit = 100, windowSec = 60) {
+  const key = `rate:${userId}:${Math.floor(Date.now() / 1000 / windowSec)}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, windowSec);
+  return count <= limit;
+}
+```
+
+আরও নির্ভুলতার জন্য sliding window (sorted set) বা token bucket।
+
+### Redis দিয়ে distributed lock কীভাবে বানায়?
+`SET key value NX PX 30000` (শুধু না থাকলে বসাও, ৩০ সেকেন্ড মেয়াদ)। Lock ছাড়ার সময় নিজের value মিলিয়ে তবেই মুছতে হয় (Lua script দিয়ে atomic)। একাধিক Redis node এ **Redlock** algorithm আছে, তবে এর নিরাপত্তা নিয়ে বিতর্ক আছে। সঠিকতা জরুরি হলে database lock বা সঠিক consensus system (ZooKeeper/etcd) বেশি নিরাপদ।
+
+### Redis আর Memcached এর পার্থক্য কী?
+- Redis: অনেক data type, persistence, replication, pub/sub, cluster
+- Memcached: শুধু সাধারণ key-value, multi-threaded, কোনো persistence নেই। সহজ ও শুধু cache এর জন্য।
+
+আজকাল Redis ই বেশি প্রচলিত।
+
+### Redis Pub/Sub আর Streams এর পার্থক্য কী?
+- **Pub/Sub**: fire-and-forget। সাবস্ক্রাইবার না থাকলে বা ডিসকানেক্ট থাকলে message হারিয়ে যায়।
+- **Streams**: message সংরক্ষিত থাকে, consumer group, acknowledgement ও পুনরায় পড়া সম্ভব। নির্ভরযোগ্য queue এর মতো।
+
+### Redis Cluster ও Sentinel কী?
+- **Sentinel**: একটি primary ও তার replica গুলো পর্যবেক্ষণ করে, primary ভাঙলে স্বয়ংক্রিয় failover (high availability)
+- **Cluster**: data কে ১৬৩৮৪টি **hash slot** এ ভাগ করে একাধিক node এ ছড়ায় (sharding + HA)
+
+### Node.js এ Redis কীভাবে ব্যবহার করবে?
+```js
+import Redis from "ioredis";
+const redis = new Redis(process.env.REDIS_URL);
+
+await redis.set("session:abc", JSON.stringify({ userId: 1 }), "EX", 3600);
+const s = JSON.parse(await redis.get("session:abc"));
+await redis.zadd("leaderboard", 150, "rahim");
+const top = await redis.zrevrange("leaderboard", 0, 9, "WITHSCORES");
+```
+
+## ১৪. অন্যান্য Database এর ধরন
+
+### OLTP আর OLAP এর পার্থক্য কী?
+- **OLTP** (Online Transaction Processing): দৈনন্দিন লেনদেন (order, payment)। অনেক ছোট ও দ্রুত read/write, ACID, normalized। PostgreSQL, MySQL।
+- **OLAP** (Online Analytical Processing): বিশ্লেষণ ও report। কম কিন্তু ভারী query, বিশাল data এর উপর aggregation। Data warehouse (BigQuery, Redshift, Snowflake, ClickHouse)।
+
+OLTP database এ ভারী report চালালে সাধারণ কাজ ধীর হয়, তাই data কে আলাদা warehouse এ (ETL/ELT) পাঠিয়ে বিশ্লেষণ করা হয়।
+
+### Row-oriented আর column-oriented database এর পার্থক্য কী?
+- **Row store** (PostgreSQL, MySQL): একটি row এর সব column একসাথে। পুরো row পড়া/লেখা (OLTP) এ ভালো।
+- **Column store** (ClickHouse, BigQuery, Redshift): একটি column এর সব মান একসাথে। কয়েকটি column এর উপর বিশাল aggregation (`SUM`, `AVG`) দ্রুত এবং ভালো compression।
+
+### Time-series database কী? কখন লাগে?
+সময়ের ক্রমে আসা data (sensor, metric, stock price) সংরক্ষণ ও query এর জন্য। অনেক write, সময়ের পরিসরে query, পুরোনো data সংকোচন বা মুছে ফেলা। উদাহরণ: TimescaleDB (PostgreSQL এর উপর), InfluxDB, Prometheus।
+
+### Graph database কী? কখন ব্যবহার করবে?
+Data কে node ও তাদের সম্পর্ক (edge) হিসেবে রাখে। সম্পর্ক ঘুরে খোঁজা (বন্ধুর বন্ধু, সুপারিশ, প্রতারণা শনাক্ত) এ SQL JOIN এর চেয়ে অনেক দ্রুত। উদাহরণ: Neo4j।
+
+### Search engine (Elasticsearch) কী? কখন database এর বদলে/সাথে লাগে?
+**Inverted index** দিয়ে full-text search, relevance ranking, typo সহনশীলতা, ভাষা বিশ্লেষণ, faceted filter দেয়। মূল data সাধারণত অন্য database এ থাকে, আর Elasticsearch/Meilisearch কে search এর জন্য sync করা হয়। সাধারণ `LIKE` এ ভালো search সম্ভব নয়।
+
+### Vector database কী? কেন AI এ ব্যবহার হয়?
+Text/ছবির embedding (সংখ্যার তালিকা) সংরক্ষণ করে এবং **সবচেয়ে কাছের (similarity) vector** দ্রুত খোঁজে। Semantic search, RAG (retrieval-augmented generation), সুপারিশে ব্যবহার। উদাহরণ: pgvector (PostgreSQL এ extension), Pinecone, Qdrant।
+
+### Polyglot persistence কী?
+একটি system এ বিভিন্ন কাজের জন্য বিভিন্ন database ব্যবহার করা: order ও payment PostgreSQL এ, cache Redis এ, search Elasticsearch এ, activity log MongoDB তে। সুবিধা: প্রতিটি কাজে সেরা সরঞ্জাম। অসুবিধা: জটিলতা, data সামঞ্জস্য ও পরিচালনা বেশি।
+
+## ১৫. MongoDB: আরও প্রশ্ন
+
+### MongoDB এর storage engine ও oplog কী?
+- **WiredTiger**: default storage engine। Document-level concurrency, compression, journaling।
+- **Oplog**: replica set এর primary তে সব write এর ক্রমিক log (capped collection)। Secondary গুলো এই log পড়ে নিজেদের data মিলিয়ে নেয়।
+
+### Array এর ভেতরের element MongoDB তে কীভাবে update করবে?
+```js
+// element যোগ / সরানো
+db.users.updateOne({ _id: 1 }, { $push: { tags: "node" } });
+db.users.updateOne({ _id: 1 }, { $addToSet: { tags: "node" } });  // duplicate এড়ায়
+db.users.updateOne({ _id: 1 }, { $pull: { tags: "old" } });
+
+// positional operator: প্রথম মেলা element
+db.orders.updateOne(
+  { _id: 1, "items.sku": "A1" },
+  { $set: { "items.$.qty": 5 } }
+);
+
+// arrayFilters: শর্ত মেলা সব element
+db.orders.updateOne(
+  { _id: 1 },
+  { $set: { "items.$[i].shipped": true } },
+  { arrayFilters: [{ "i.qty": { $gt: 0 } }] }
+);
+```
+
+### `bulkWrite` কী? কেন দরকার?
+অনেকগুলো insert/update/delete কে একটি request এ পাঠানো। প্রতিটির জন্য আলাদা network round trip এর খরচ বাঁচে, তাই অনেক দ্রুত।
+
+```js
+await db.products.bulkWrite([
+  { insertOne: { document: { sku: "A", stock: 5 } } },
+  { updateOne: { filter: { sku: "B" }, update: { $inc: { stock: -1 } } } },
+  { deleteOne: { filter: { sku: "C" } } },
+]);
+```
+
+### `findOneAndUpdate` কেন atomic counter/queue এর জন্য ভালো?
+এটি এক operation এ document খুঁজে, update করে, এবং (আগের বা পরের) document ফেরত দেয়, তাই race condition হয় না।
+
+```js
+const doc = await Counter.findOneAndUpdate(
+  { _id: "orderNo" },
+  { $inc: { seq: 1 } },
+  { new: true, upsert: true }    // Mongoose এ new: true = আপডেটের পরের document
+);
+```
+
+### Change Streams কী?
+Collection/database এ ঘটা পরিবর্তন (insert, update, delete) real-time এ শোনার সুবিধা। Replica set বা sharded cluster এ কাজ করে। ব্যবহার: real-time notification, cache invalidate, অন্য system এ sync।
+
+```js
+const stream = db.collection("orders").watch();
+stream.on("change", (e) => console.log(e.operationType, e.fullDocument));
+```
+
+### MongoDB schema design pattern গুলো কী কী?
+- **Subset pattern**: বেশি ব্যবহৃত অংশ (সর্বশেষ ১০টি review) মূল document এ, বাকি আলাদা collection এ
+- **Bucket pattern**: time-series data কে সময়ের বালতি (ঘণ্টা/দিন) এ গুচ্ছ করা, document সংখ্যা কমে
+- **Computed pattern**: আগে থেকে হিসাব করা মান (`avgRating`) রাখা
+- **Extended reference**: referenced document এর কিছু দরকারি field (নাম) নিজের কাছে কপি রাখা, `$lookup` কমে
+- **Outlier pattern**: ব্যতিক্রমী বড় document কে আলাদা করা
+- **Schema versioning**: document এ `schemaVersion` রেখে ধীরে ধীরে migrate
+
+### Capped collection কী?
+নির্দিষ্ট আকারের collection যেখানে ভরে গেলে সবচেয়ে পুরোনো document নিজে থেকে মুছে নতুনটির জায়গা হয় (circular buffer)। Log বা সাম্প্রতিক event এর জন্য। (TTL index এর বিকল্প হিসেবে সময়ের বদলে আকারের ভিত্তিতে।)
+
+### Read preference কী?
+Replica set এ read কোন node থেকে যাবে: `primary` (default, সবচেয়ে সতেজ), `primaryPreferred`, `secondary`, `secondaryPreferred`, `nearest` (সবচেয়ে কম latency)। Secondary থেকে পড়লে read ভাগ হয়, কিন্তু replication lag এর কারণে পুরোনো data আসতে পারে।
+
+### MongoDB তে `_id` হিসেবে `ObjectId` না কি custom মান? UUID কখন?
+- `ObjectId`: ডিফল্ট, প্রায় সময়ক্রমিক, ছোট, কোনো আলাদা প্রচেষ্টা লাগে না
+- Custom `_id` (যেমন natural key, email): আলাদা unique index লাগে না, কিন্তু মান বদলানো যায় না
+- UUID: বিভিন্ন system থেকে আগেই id তৈরি করতে হলে বা id আন্দাজ করা কঠিন রাখতে (বড় সাইজ)
+
+### Unique, sparse আর partial index এর পার্থক্য কী?
+- **Unique**: duplicate আটকায় (`null` ও একবারই চলে)
+- **Sparse**: যে document এ ওই field আছেই শুধু সেগুলো index করে
+- **Partial**: একটি filter শর্ত মেলা document গুলোই index করে (আরও নমনীয়, আধুনিক পছন্দ)
+
+```js
+db.users.createIndex(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $exists: true } } }
+);
+```
+
+### MongoDB তে search (text search) কীভাবে করবে?
+- সাধারণ `$text` index: সরল keyword search, সীমিত ক্ষমতা
+- **Atlas Search** (Lucene ভিত্তিক): ভালো relevance, fuzzy, autocomplete, facet
+- বা Elasticsearch/Meilisearch আলাদা করে sync করা
+
+### MongoDB তে duplicate document কীভাবে খুঁজবে?
+```js
+db.users.aggregate([
+  { $group: { _id: "$email", count: { $sum: 1 }, ids: { $push: "$_id" } } },
+  { $match: { count: { $gt: 1 } } },
+]);
+```
+
+## ১৬. PostgreSQL: আরও প্রশ্ন
+
+### WAL (Write-Ahead Log) কী?
+কোনো পরিবর্তন data file এ লেখার **আগে** একটি log এ লেখা। Crash হলে WAL থেকে পুনরুদ্ধার (durability নিশ্চিত)। Replication ও point-in-time recovery এর ভিত্তি। Commit তখনই সফল ধরা হয় যখন WAL disk এ পৌঁছায়।
+
+### Physical (streaming) আর logical replication এর পার্থক্য কী?
+- **Physical/streaming**: WAL এর byte-by-byte কপি। পুরো cluster এর একই কপি (replica শুধু পড়ার জন্য)। Failover ও read scaling।
+- **Logical**: row-level পরিবর্তন (publication/subscription)। নির্দিষ্ট table কপি করা যায়, ভিন্ন version/schema এর মধ্যে, data migration ও zero-downtime upgrade এ ভালো।
+
+### Row Level Security (RLS) কী?
+Table এর row স্তরে সুরক্ষা: কোন user কোন row দেখতে/বদলাতে পারবে তা policy দিয়ে ঠিক করা। Multi-tenant app এ `tenant_id` ভুলে ফিল্টার করা থেকে বাঁচায়।
+
+```sql
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON documents
+  USING (tenant_id = current_setting('app.tenant_id')::int);
+```
+
+### PostgreSQL এর কয়েকটি জনপ্রিয় extension কী কী?
+- `pg_stat_statements`: query পরিসংখ্যান
+- `pg_trgm`: similarity ও `LIKE '%x%'` এর index
+- `PostGIS`: ভৌগোলিক data
+- `pgvector`: vector search (AI)
+- `uuid-ossp`/`pgcrypto`: UUID ও encryption
+- `btree_gist`: exclusion constraint এর জন্য
+- `TimescaleDB`: time-series
+
+### `LISTEN` / `NOTIFY` কী?
+PostgreSQL এর নিজস্ব হালকা pub/sub। এক connection `NOTIFY channel, 'msg'` পাঠায়, `LISTEN channel` করা অন্যরা সাথে সাথে পায়। ছোট real-time কাজ (cache invalidate, job জাগানো) এর জন্য কাজে লাগে।
+
+### `RETURNING` clause কী?
+`INSERT/UPDATE/DELETE` এর পরিবর্তিত row সরাসরি ফেরত পাওয়া, আলাদা `SELECT` ছাড়াই।
+
+```sql
+INSERT INTO users (name) VALUES ('Rahim') RETURNING id, created_at;
+```
+
+### Sequence এ gap কেন হয়? (rollback করলেও id ফেরত আসে না)
+Sequence transaction এর অংশ নয়, তাই `nextval` একবার নিলে rollback হলেও সেই মান ফেরত আসে না। তাই `id` এ ফাঁক থাকা স্বাভাবিক। Id কে "গোনা" বা ফাঁকহীন হিসেবে ভরসা করবেন না। (ফাঁকহীন invoice নম্বর লাগলে আলাদা কৌশল দরকার।)
+
+### TOAST কী?
+PostgreSQL এর কৌশল যেখানে বড় column মান (বড় text, `jsonb`) আলাদা জায়গায় সংকুচিত করে রাখা হয়, যাতে মূল row ছোট থাকে। `SELECT *` এ বড় column আনলে এই খরচ বাড়ে, তাই দরকারি column ই আনুন।
+
+### `idle in transaction` কী? কীভাবে খুঁজবে ও ঠিক করবে?
+একটি connection `BEGIN` করে কিছু না করে বসে আছে (সাধারণত application ভুলে commit/rollback করেনি)। এতে lock ও পুরোনো row version আটকে থাকে।
+
+```sql
+SELECT pid, state, now() - xact_start AS duration, query
+FROM pg_stat_activity
+WHERE state = 'idle in transaction'
+ORDER BY duration DESC;
+```
+
+সমাধান: application এ transaction ঠিকমতো বন্ধ করা, `idle_in_transaction_session_timeout` সেট করা।
+
+### Index rebuild ও বড় table এ column যোগ কীভাবে নিরাপদে করবে?
+- `CREATE INDEX CONCURRENTLY` ও `REINDEX CONCURRENTLY`: table lock না করে (ধীর, কিন্তু write চলতে থাকে)
+- PostgreSQL 11 থেকে constant default সহ `ALTER TABLE ... ADD COLUMN ... DEFAULT x` দ্রুত (table পুনর্লিখন হয় না)
+- Foreign key/constraint `NOT VALID` দিয়ে যোগ করে পরে `VALIDATE CONSTRAINT`
+- `lock_timeout` দিন, যাতে lock না পেলে অনির্দিষ্টকাল অন্যদের আটকে না রাখে
+
+### Table bloat কী? কীভাবে মাপবে ও কমাবে?
+Update/delete এ জমা dead row এর কারণে table/index ফুলে যাওয়া। লক্ষণ: table এর আকার বাড়ছে অথচ row এর সংখ্যা বাড়ছে না, query ধীর। প্রতিকার: `autovacuum` ঠিকমতো চলছে কিনা দেখা ও tune করা, দীর্ঘ transaction এড়ানো, দরকারে `VACUUM FULL` বা `pg_repack` (online)।
+
+## ১৭. Security ও Operations
+
+### Database নিরাপদ রাখতে কী কী করবে?
+- **Least privilege**: application এর জন্য আলাদা user, শুধু দরকারি অনুমতি (superuser নয়)
+- **Parameterized query** (SQL injection ঠেকাতে)
+- **Network বিচ্ছিন্নতা**: database public internet এ খোলা নয়, private network/VPC/firewall
+- **TLS** (`sslmode=require`) দিয়ে সংযোগ এনক্রিপ্ট
+- **Encryption at rest** (disk ও backup)
+- Password database এ plain text নয়, `bcrypt`/`argon2` দিয়ে hash
+- Secret (connection string) কোডে নয়, env/secret manager এ
+- **Audit logging**, নিয়মিত patch/update
+- Backup এনক্রিপ্ট ও সীমিত অ্যাক্সেস
+
+### Sensitive/PII data কীভাবে সামলাবে? (GDPR)
+- দরকারি ন্যূনতম data ই সংরক্ষণ (data minimization)
+- সংবেদনশীল column এনক্রিপ্ট বা masking
+- অ্যাক্সেস সীমিত ও লগ রাখা
+- ব্যবহারকারী মুছতে বললে মোছা বা anonymize করার প্রক্রিয়া (backup এও মনে রাখুন)
+- Log এ ব্যক্তিগত data না লেখা
+- Retention policy: নির্দিষ্ট সময় পর পুরোনো data মুছে ফেলা
+
+### Production database এ কোন metric গুলো নজরে রাখবে?
+- Connection সংখ্যা ও pool অবস্থা
+- Query latency (p95/p99), slow query সংখ্যা
+- CPU, memory, disk I/O ও disk ভরার হার
+- Replication lag
+- Cache hit ratio (PostgreSQL `shared_buffers`, Redis hit rate)
+- Lock অপেক্ষা ও deadlock সংখ্যা
+- Table/index bloat, autovacuum অবস্থা
+- Error rate, backup সফল হচ্ছে কিনা
+
+### Backup strategy কেমন হওয়া উচিত? (3-2-1 নিয়ম)
+**3** টি কপি, **২** ধরনের ভিন্ন মাধ্যমে, **১** টি অন্য জায়গায় (offsite)। সাথে:
+
+- Full + incremental/WAL archive, point-in-time recovery
+- নিয়মিত **restore পরীক্ষা** (restore না করে দেখলে backup কাজ করে কিনা জানা যায় না)
+- RPO ও RTO ঠিক করে সে অনুযায়ী পরিকল্পনা
+- Backup এনক্রিপ্ট ও সংরক্ষিত
+
+### Database migration নিরাপদে চালানোর নিয়ম কী?
+- Migration কে version control এ রাখা, ছোট ও পিছনের সাথে সামঞ্জস্যপূর্ণ ধাপ
+- আগে staging এ বড় data দিয়ে পরীক্ষা
+- Production এ চালানোর আগে backup
+- বড় table এ lock এড়াতে `CONCURRENTLY`, batch backfill
+- Rollback পরিকল্পনা রাখা
+- Expand and contract pattern (আগে যোগ, পরে সরানো)
+
+### Data retention ও archival কীভাবে করবে?
+সব data চিরকাল hot database এ রাখলে table বড় ও ধীর হয়। পুরোনো data কে partition করে আলাদা সস্তা storage/archive table এ সরানো বা নির্দিষ্ট সময় পর মুছে ফেলা (TTL index/partition drop)। আইনি ও ব্যবসায়িক প্রয়োজন অনুযায়ী retention সময় ঠিক করুন।
+
+### Connection limit এর সমস্যা কীভাবে সামলাবে? (`too many connections`)
+- Application এ সঠিক connection pool (সীমিত আকারে)
+- অনেক app instance/serverless থাকলে **PgBouncer** বা managed pooler (প্রতিটি connection database এ ব্যয়বহুল)
+- Connection লিক ঠিক করা (`client.release()` ভুলে যাওয়া)
+- `max_connections` শুধু বাড়ানো সমাধান নয়, বরং memory খরচ বাড়ায়
+
+### Database upgrade (যেমন PostgreSQL major version) কীভাবে করবে?
+- Staging এ আগে পরীক্ষা, extension ও query সামঞ্জস্য যাচাই
+- `pg_upgrade` (দ্রুত, কিছু downtime), অথবা **logical replication** দিয়ে নতুন cluster এ ধীরে ধীরে সরানো (প্রায় zero downtime)
+- Backup ও rollback পরিকল্পনা, upgrade এর পর `ANALYZE`
+
+## ১৮. আরও Scenario ও Design প্রশ্ন
+
+### URL shortener এর database কীভাবে ডিজাইন করবে?
+- Table: `urls (id, short_code UNIQUE, long_url, user_id, created_at, expires_at)`
+- Short code: counter কে base62 এ রূপান্তর, বা random কোড (collision এ retry), `UNIQUE` index
+- পড়া অনেক বেশি লেখার চেয়ে, তাই **Redis cache** (`short_code → long_url`) ও read replica
+- Click analytics আলাদা append-only table/stream এ, প্রধান পথ ধীর না করে async লিখুন
+- বড় scale এ `short_code` দিয়ে sharding
+
+### Ticket/seat booking system এ double booking কীভাবে এড়াবে?
+- `UNIQUE (show_id, seat_id)` constraint (শেষ রক্ষাকবচ)
+- Booking এর সময় `SELECT ... FOR UPDATE` বা atomic `UPDATE ... WHERE status = 'free'`
+- সাময়িক hold (৫ মিনিট) এর জন্য `held_until` column বা Redis TTL, পেমেন্ট সফল হলে confirm
+- Payment ও booking এ idempotency key
+- Expired hold গুলো background job দিয়ে মুক্ত করা
+
+### Leaderboard কীভাবে বানাবে?
+Redis **Sorted Set**: `ZADD leaderboard score user`, শীর্ষ N `ZREVRANGE`, কোনো user এর rank `ZREVRANK`। সব O(log N)। স্থায়ী record এর জন্য database এ পর্যায়ক্রমে সংরক্ষণ। Database এ শুধু করতে হলে score এর উপর index ও `ORDER BY score DESC LIMIT N`, তবে rank বের করা ধীর।
+
+### Notification system এর database কেমন হবে?
+- `notifications (id, user_id, type, payload jsonb, read_at, created_at)` ও `(user_id, created_at DESC)` index
+- Unread সংখ্যার জন্য counter (Redis/column) ও partial index (`WHERE read_at IS NULL`)
+- পাঠানোর কাজ queue (BullMQ/SQS) দিয়ে async, retry ও idempotency সহ
+- পুরোনো notification archive/মুছে ফেলার নীতি
+
+### Comment thread (nested reply) এর schema কীভাবে করবে?
+- সহজ: `parent_id` (adjacency list), recursive CTE দিয়ে পড়া
+- বড় ও গভীর thread এ: materialized path বা closure table
+- Pagination: top-level comment cursor দিয়ে, reply lazy-load
+- Count denormalize (`reply_count`)
+
+### Search feature (পণ্য খোঁজা) কীভাবে বানাবে?
+- ছোট scale: PostgreSQL full-text search (`tsvector` + GIN) বা `pg_trgm`
+- বড়/ভালো relevance দরকার: Elasticsearch/Meilisearch, database থেকে sync (CDC বা outbox)
+- Filter/sort/facet ও autocomplete, সাথে cache
+
+### Analytics/reporting কীভাবে করবে যাতে মূল database ধীর না হয়?
+- ভারী report **read replica** তে
+- Materialized view/pre-aggregated summary table, রাতে refresh
+- বড় বিশ্লেষণ আলাদা **data warehouse** এ (BigQuery/ClickHouse), ETL/CDC দিয়ে data পাঠানো (OLTP/OLAP আলাদা)
+- Event/click log append-only ধরনে
+
+### Shopping cart কোথায় সংরক্ষণ করবে? (database, Redis নাকি browser)
+- Guest: browser (`localStorage`) বা cookie, লগইনের পর merge
+- Logged in: database (`carts`, `cart_items`) যাতে সব device এ থাকে
+- খুব ঘন ঘন বদলালে Redis (TTL সহ), পরে checkout এ database এ স্থায়ী order
+- Checkout এ দাম আবার যাচাই, কারণ cart এর দাম পুরোনো হতে পারে
+
+### একটি বড় table (১০০ কোটি row) ধীর হয়ে গেছে। কী করবে?
+ধাপে ধাপে:
+
+- আগে মাপুন: ধীর query ও `EXPLAIN ANALYZE`, bloat দেখা
+- Query অনুযায়ী সঠিক index (composite/partial), অব্যবহৃত index সরানো
+- **Partitioning** (সময় অনুযায়ী), পুরোনো partition archive
+- পুরোনো data কে cold storage এ সরানো (retention)
+- Read replica ও cache, aggregation এর জন্য pre-computed table
+- সবশেষে sharding (জটিলতা বেশি তাই শেষ ভরসা)
+
+### Money transfer (A থেকে B কে টাকা) নিরাপদে কীভাবে করবে?
+একটি transaction এ, deadlock এড়াতে সবসময় id এর ক্রমে lock নিন, আর balance যাচাই করুন।
+
+```sql
+BEGIN;
+SELECT id, balance FROM accounts WHERE id IN (1, 2) ORDER BY id FOR UPDATE;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1 AND balance >= 100;
+-- 0 row আপডেট হলে ROLLBACK (ব্যালেন্স কম)
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+INSERT INTO ledger (from_id, to_id, amount, idempotency_key) VALUES (1, 2, 100, $1);
+COMMIT;
+```
+
+সাথে: `NUMERIC` ব্যবহার, ledger (double-entry) এ প্রতিটি লেনদেনের হিসাব, `idempotency_key` UNIQUE।
 </script>
 
 <script>
