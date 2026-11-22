@@ -4952,6 +4952,1770 @@ export default function Product() {
 **Interview answer:** "A static page is generated at build time and served from a CDN. A dynamic page is rendered on every request. With partial prerendering, a single page has a static shell that arrives instantly, while dynamic parts are streamed in through Suspense, so we get SSG's speed and SSR's freshness." (PPR setup Next.js version অনুযায়ী আলাদা, docs দেখে নিন।)
 </script>
 
+<script type="text/plain" id="content-state">
+## ১. State Management Basics
+
+### What is the state? (State কী?)
+State হলো এমন data যা **সময়ের সাথে পরিবর্তিত হয়** এবং UI তে কী দেখানো হবে তা প্রভাবিত করে।
+
+উদাহরণ: modal খোলা আছে কিনা, input এর মান, cart এর item, logged in user, API থেকে আসা তালিকা।
+
+**Interview answer:** "State is data that can change over time and affects what is displayed in the UI."
+
+### Why do we need state management? (State management কেন লাগে?)
+State Management ব্যবহার করা হয় application এর data কে efficiently manage এবং বিভিন্ন component এর মধ্যে share করার জন্য, যাতে UI সবসময় application এর বর্তমান state এর সাথে synchronized থাকে।
+
+Application বড় হলে শুধু local component state এর উপর নির্ভর করলে হয়:
+
+- **Prop drilling** (অনেক স্তর পার করে props পাঠানো)
+- **Duplicated state** (একই data একাধিক জায়গায়)
+- Code maintain করার জটিলতা
+
+Context API, Redux Toolkit ও Zustand এর মতো সমাধান shared data কে একটি centralized ও predictable উপায়ে সামলাতে সাহায্য করে। ফলে application scalable হয়, debugging সহজ হয় এবং data flow পরিষ্কার থাকে।
+
+**কোনটা কখন (আমার সাধারণ নিয়ম):**
+
+- Component এর নিজস্ব data: local state (`useState`)
+- Theme, language, authentication এর মতো সহজ global state: Context API
+- বড় application এ জটিল shared state: Redux Toolkit বা Zustand
+
+### Can we use state without React? (React ছাড়া কি state থাকতে পারে?)
+হ্যাঁ। State একটি সাধারণ **programming concept**। React state এর ধারণা তৈরি করেনি, বরং তা সামলানোর একটি সহজ ও কার্যকর উপায় দিয়েছে।
+
+সাধারণ JavaScript এ আমরা variable এ state রাখতে পারি এবং state বদলালে DOM নিজে হাতে update করতে হয়।
+
+```js
+// vanilla JS
+let count = 0;
+const el = document.getElementById("count");
+document.getElementById("btn").addEventListener("click", () => {
+  count++;
+  el.textContent = count;   // DOM নিজে হাতে আপডেট
+});
+```
+
+React এই কাজ সহজ করে: state পরিবর্তন detect করে, component re-render করে এবং UI কে স্বয়ংক্রিয়ভাবে সর্বশেষ data এর সাথে sync রাখে।
+
+### State এর ধরন কী কী? (UI, client, server, URL, form state)
+- **UI state (local)**: modal খোলা/বন্ধ, toggle, tab। `useState`/`useReducer`
+- **Client (app/global) state**: একাধিক component এ শেয়ার হওয়া data যা server এর নয়: filter, cart, theme, auth। Context, Redux Toolkit, Zustand
+- **Server state**: API থেকে আসা data (product, booking, search result)। এটা server এ থাকে, আমরা শুধু কপি রাখি, তাই পুরোনো (stale) হতে পারে। React Query, RTK Query, SWR
+- **URL state**: filter, page, search query (`?page=2&q=abc`)। শেয়ারযোগ্য, reload এ থাকে
+- **Form state**: input মান, validation, error। React Hook Form, Formik
+
+প্রতিটি ধরনের জন্য আলাদা উপযুক্ত tool ব্যবহার করা ভালো।
+
+### Local state আর global state এর পার্থক্য কী? কখন কোনটা?
+- **Local**: একটি component (বা তার কয়েকটি child) এর ভেতরেই দরকার। `useState`।
+- **Global**: অনেক দূরের component এ দরকার, বা পেজ বদলালেও থাকতে হবে।
+
+নিয়ম: **যতটা সম্ভব local রাখুন**, শুধু সত্যিই শেয়ার দরকার হলে উপরে তুলুন (lifting state up), তারপর Context/store। সবকিছু global store এ ঢোকানো অতিরিক্ত জটিলতা।
+
+### Derived state কী? কেন আলাদা state এ রাখা উচিত নয়?
+যে মান অন্য state/props থেকে হিসাব করে পাওয়া যায় তা derived state। এটা আলাদা state এ রাখলে দুটোর sync ভেঙে (stale) যেতে পারে।
+
+```jsx
+// খারাপ
+const [items, setItems] = useState([]);
+const [total, setTotal] = useState(0);   // items বদলালে আলাদা করে আপডেট করতে হবে
+
+// ভালো
+const total = items.reduce((s, i) => s + i.price * i.qty, 0);   // সবসময় হিসাব করা
+// ভারী হলে useMemo
+```
+
+### State immutable কেন রাখতে হয়?
+React ও Redux পরিবর্তন ধরে **reference তুলনা** (`===`) করে। সরাসরি বদলালে (mutate) reference একই থাকে, তাই "কিছু বদলায়নি" মনে হয় এবং re-render হয় না। নতুন object/array বানালে reference বদলায়। এছাড়া history/time-travel debugging ও সহজ হয়।
+
+```js
+state.items.push(x);                  // mutate: ভুল
+setItems([...items, x]);              // নতুন array: ঠিক
+setUser({ ...user, name: "A" });      // নতুন object: ঠিক
+```
+
+### One-way data flow (unidirectional) কী? Flux architecture কী?
+Data এক দিকে বয়: state → UI → (user action) → state আপডেট → UI। কে কখন data বদলাল বোঝা সহজ হয়। **Flux** (থেকে Redux) এর ধারণা: `Action → Dispatcher/Reducer → Store → View`, আর View থেকে আবার Action।
+
+### Prop drilling কী? কীভাবে সমাধান করবে?
+মাঝের component গুলোর নিজের দরকার নেই, তবুও অনেক স্তর পার করে props পাঠানো। সমাধান:
+
+- **Composition** (`children`, প্রয়োজনীয় অংশ নিচে নামানো)
+- **Context API**
+- State library (Zustand/Redux)
+- State যেখানে দরকার তার কাছাকাছি রাখা (colocation)
+
+### State management এ library কী কী আছে?
+- Built-in: `useState`, `useReducer`, Context
+- **Redux Toolkit**: structured, devtools, বড় app
+- **Zustand**: হালকা, কম boilerplate
+- **Jotai**: atom ভিত্তিক, ছোট ছোট state
+- **MobX**: observable, reactive
+- **Valtio**: proxy ভিত্তিক
+- **XState**: state machine
+- Recoil: একসময় জনপ্রিয় ছিল, কিন্তু এখন maintenance বন্ধ প্রায়, নতুন project এ এড়িয়ে চলুন
+- Server state: React Query (TanStack Query), SWR, RTK Query
+
+### `useState` আর `useReducer` এর পার্থক্য কী? কখন কোনটা?
+- `useState`: সহজ ও স্বাধীন মান (toggle, input)
+- `useReducer`: জটিল বা সম্পর্কিত একাধিক state, পরের state আগের উপর নির্ভর, update logic আলাদা করে test করতে চাইলে। Redux এর মতো `(state, action) => newState`।
+
+## ২. Context API
+
+### Context API কী? কী সমস্যা সমাধান করে?
+Context হলো React এর built-in উপায় যাতে data গাছের যেকোনো স্তরে সরাসরি পৌঁছে যায়, মাঝের component কে props পাঠাতে হয় না। এটা **prop drilling** এর সমাধান।
+
+```jsx
+const ThemeContext = createContext("light");
+
+function App() {
+  const [theme, setTheme] = useState("light");
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <Page />
+    </ThemeContext.Provider>
+  );
+}
+const { theme } = useContext(ThemeContext);   // গভীর কোনো component এ
+```
+
+### When would you use Context API? (কখন Context API ব্যবহার করবে?)
+আমি Context API ব্যবহার করি যখন application এর কিছু global data, যেমন authentication, theme, language বা user preference, অনেক component এর মধ্যে share করতে হয় এবং state management এর complexity কম থাকে। Context prop drilling দূর করতে সাহায্য করে এবং implementation তুলনামূলকভাবে সহজ।
+
+তবে যদি state frequently update হয়, state size বড় হয় বা complex business logic থাকে, তাহলে Redux Toolkit বা Zustand ব্যবহার করি, কারণ সেগুলো performance ও scalability এর জন্য বেশি উপযুক্ত।
+
+### When would Context API become a bad choice? (কখন Context API খারাপ পছন্দ?)
+Context API উপযুক্ত যখন state তুলনামূলক সহজ (theme, language, authentication)। কিন্তু যখন state এর business logic জটিল হয়ে যায় এবং application এর একাধিক feature একই state এর উপর নির্ভর করে, তখন Context manage করা কঠিন হয়।
+
+**উদাহরণ (নিজের project এর গল্প):** আমার OTA project এ search filter, hotel listing, sorting, pagination ও booking information একে অপরের সাথে সম্পর্কিত ছিল। Context দিয়ে করা সম্ভব ছিল, কিন্তু state update logic, debugging ও feature scaling ধীরে ধীরে জটিল হয়ে যেত। তাই আমরা Redux Toolkit ব্যবহার করেছি, কারণ এটি state management এর জন্য structured architecture দেয় এবং application বড় হওয়ার পরও code maintain করা সহজ থাকে।
+
+(নিজের আসল project এর উদাহরণ দিন। উদাহরণ নিজের অভিজ্ঞতা থেকে হলে interviewer এর follow-up এ আটকাবেন না।)
+
+### Context এর value বদলালে কী হয়? Performance সমস্যা কী?
+Provider এর `value` এর **reference** বদলালেই ওই context পড়া **সব consumer re-render** হয়, এমনকি তারা শুধু value র একটি অংশ ব্যবহার করলেও এবং `React.memo` থাকলেও। Context এ selector নেই।
+
+একটি সাধারণ ভুল: `value={{ user, setUser }}` লিখলে Provider এর parent re-render হলেই প্রতিবার নতুন object তৈরি হয়, ফলে সব consumer re-render হয়।
+
+### Context এর performance সমস্যা কীভাবে কমাবে?
+- **`value` কে `useMemo` তে** রাখুন
+- **Context ভাগ করুন** (state আর dispatch আলাদা, বিষয় অনুযায়ী আলাদা)
+- ঘন ঘন বদলানো data (mouse position, timer) Context এ রাখবেন না
+- Provider কে যতটা সম্ভব নিচে (ছোট subtree তে) রাখুন
+- `children` pattern ব্যবহার করুন, যাতে Provider এর state বদলালে `children` (আগে থেকে তৈরি element) re-render না হয়
+- Selector লাগলে Zustand/Redux ব্যবহার করুন
+
+```jsx
+const value = useMemo(() => ({ user, login, logout }), [user, login, logout]);
+return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+```
+
+### State আর dispatch আলাদা Context এ রাখা কেন ভালো?
+`dispatch` (বা stable function) এর reference বদলায় না। তাই যে component শুধু action পাঠায় (state পড়ে না) সে state বদলালে re-render হয় না।
+
+```jsx
+const CartStateContext = createContext();
+const CartDispatchContext = createContext();
+// <CartStateContext.Provider value={state}>
+//   <CartDispatchContext.Provider value={dispatch}>
+```
+
+### Context + `useReducer` কি Redux এর বিকল্প হতে পারে?
+ছোট থেকে মাঝারি app এ হ্যাঁ। কিন্তু এতে নেই: selector (re-render নিয়ন্ত্রণ), devtools/time travel, middleware, caching, তৈরি করা structure। বড় ও জটিল state এ Redux Toolkit/Zustand ভালো।
+
+### Context কে global state management library বলা যায় কি?
+সঠিকভাবে বললে না। Context আসলে data **পৌঁছানোর (dependency injection)** উপায়। State রাখা ও আপডেট করার কাজ করে `useState`/`useReducer`। Context শুধু সেটা গাছের নিচে ছড়িয়ে দেয়।
+
+### Context এ `use` hook (React 19) কী?
+React 19 এ `use(MyContext)` দিয়ে context পড়া যায়, এবং `useContext` এর বিপরীতে এটি **condition বা loop এর ভেতরে** ও ব্যবহার করা যায়। কাজ একই, তবে বেশি নমনীয়।
+
+### Context এ default value কখন কাজে লাগে?
+`useContext` এ Provider না পেলে `createContext(defaultValue)` এর default ফেরত আসে। প্রায়ই Provider ভুলে যাওয়ার বাগ ধরতে default `null` রেখে custom hook এ error throw করা ভালো।
+
+```jsx
+const AuthContext = createContext(null);
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
+}
+```
+
+## ৩. Redux ও Redux Toolkit
+
+### Redux কী? এর তিনটি মূল নীতি কী?
+Redux হলো JavaScript app এর জন্য predictable state container। তিনটি নীতি:
+
+- **Single source of truth**: পুরো app এর state একটি store এ
+- **State is read-only**: state বদলানোর একমাত্র উপায় action পাঠানো
+- **Changes with pure functions**: reducer (pure function) পুরোনো state ও action নিয়ে নতুন state বানায়
+
+### Redux এর data flow বর্ণনা করো
+```
+UI (user click)
+   ↓ dispatch(action)
+Store → Reducer (পুরোনো state + action → নতুন state)
+   ↓
+Store এর state আপডেট
+   ↓ subscribe
+UI re-render (useSelector)
+```
+
+### Redux Toolkit (RTK) কী? কেন Redux এর চেয়ে ভালো?
+RTK হলো Redux লেখার **অফিসিয়াল ও প্রস্তাবিত** উপায়। পুরোনো Redux এ boilerplate (action type, action creator, switch reducer, immutable update) অনেক ছিল। RTK দেয়:
+
+- `configureStore`: store setup, thunk ও devtools স্বয়ংক্রিয়
+- `createSlice`: reducer ও action এক জায়গায়
+- **Immer** built-in: "mutate" এর মতো লিখলেও ভেতরে immutable update
+- `createAsyncThunk`: async কাজ
+- `createEntityAdapter`, RTK Query
+
+### `createSlice`, `configureStore` ও Provider কীভাবে লিখবে?
+```js
+// cartSlice.js
+import { createSlice } from "@reduxjs/toolkit";
+
+const cartSlice = createSlice({
+  name: "cart",
+  initialState: { items: [] },
+  reducers: {
+    addItem(state, action) {
+      const item = state.items.find((i) => i.id === action.payload.id);
+      if (item) item.qty += 1;                 // Immer এর কারণে "mutate" চলে
+      else state.items.push({ ...action.payload, qty: 1 });
+    },
+    removeItem(state, action) {
+      state.items = state.items.filter((i) => i.id !== action.payload);
+    },
+    clear: () => ({ items: [] }),
+  },
+});
+export const { addItem, removeItem, clear } = cartSlice.actions;
+export default cartSlice.reducer;
+
+// store.js
+import { configureStore } from "@reduxjs/toolkit";
+export const store = configureStore({ reducer: { cart: cartReducer } });
+
+// main.jsx
+<Provider store={store}><App /></Provider>
+
+// component
+const items = useSelector((s) => s.cart.items);
+const dispatch = useDispatch();
+dispatch(addItem({ id: 1, name: "Shirt", price: 500 }));
+```
+
+### Reducer কেন pure হতে হয়? Immer কীভাবে "mutate" করার সুযোগ দেয়?
+Pure মানে একই input এ একই output, বাইরের কিছু বদলায় না (API call, random, `Date.now()` নেই)। এতে state পরিবর্তন predictable ও time-travel সম্ভব।
+
+RTK এর `createSlice` ভেতরে **Immer** ব্যবহার করে। আপনি draft state এ "সরাসরি বদলান", Immer সেই পরিবর্তন থেকে নতুন immutable state তৈরি করে। (একই reducer এ হয় draft mutate করুন, নয় নতুন মান return করুন, দুটো একসাথে নয়।)
+
+### `createAsyncThunk` কী? পুরো উদাহরণ দাও
+Async কাজ (API call) এর জন্য। এটি তিনটি action স্বয়ংক্রিয়ভাবে তৈরি করে: `pending`, `fulfilled`, `rejected`।
+
+```js
+export const fetchUsers = createAsyncThunk("users/fetch", async (_, { rejectWithValue }) => {
+  try {
+    const res = await fetch("/api/users");
+    if (!res.ok) throw new Error("Failed");
+    return await res.json();
+  } catch (e) {
+    return rejectWithValue(e.message);
+  }
+});
+
+const usersSlice = createSlice({
+  name: "users",
+  initialState: { list: [], status: "idle", error: null },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUsers.pending, (s) => { s.status = "loading"; })
+      .addCase(fetchUsers.fulfilled, (s, a) => { s.status = "succeeded"; s.list = a.payload; })
+      .addCase(fetchUsers.rejected, (s, a) => { s.status = "failed"; s.error = a.payload; });
+  },
+});
+```
+
+### Middleware কী? Redux Thunk, Saga আর Listener middleware এর পার্থক্য কী?
+Middleware হলো action dispatch ও reducer এর মাঝখানের স্তর, যেখানে async কাজ, logging, analytics ইত্যাদি করা যায়।
+
+- **Thunk**: action এর বদলে function dispatch করা যায়, সহজ। RTK এ ডিফল্ট।
+- **Saga**: generator function দিয়ে জটিল async flow (race, debounce, cancel)। শেখা কঠিন।
+- **Listener middleware** (RTK): action ঘটলে প্রতিক্রিয়া দেখানোর হালকা উপায়। অনেক saga এর কাজ এখানে চলে।
+
+### Selector কী? `createSelector` (memoization) কেন লাগে?
+Selector হলো store থেকে data বের করার function। `createSelector` (Reselect) ফলাফল **memoize** করে: input selector এর ফল না বদলালে আগের ফলই ফেরত দেয়, ভারী হিসাব বা নতুন array/object বানানো এড়ায়।
+
+```js
+import { createSelector } from "@reduxjs/toolkit";
+
+const selectItems = (s) => s.cart.items;
+export const selectTotal = createSelector([selectItems], (items) =>
+  items.reduce((sum, i) => sum + i.price * i.qty, 0)
+);
+```
+
+### `useSelector` কীভাবে re-render ঠিক করে? কোন ভুলে অকারণ re-render হয়?
+`useSelector` প্রতিবার state বদলালে selector চালায় এবং ফলকে **`===` strict equality** দিয়ে তুলনা করে। আগের মান ও নতুন মান একই হলে re-render হয় না।
+
+ভুল: selector এ প্রতিবার **নতুন object/array** return করা (`s => ({ a: s.a, b: s.b })`)। এতে প্রতিবার নতুন reference, তাই প্রতি state পরিবর্তনে re-render। সমাধান: আলাদা আলাদা `useSelector`, `createSelector`, বা `shallowEqual`।
+
+```js
+// খারাপ
+const data = useSelector((s) => ({ a: s.a, b: s.b }));
+// ভালো
+const a = useSelector((s) => s.a);
+const b = useSelector((s) => s.b);
+```
+
+### Typed hooks (`useAppSelector`/`useAppDispatch`) কেন বানায়? (TypeScript)
+```ts
+import { useDispatch, useSelector } from "react-redux";
+import type { TypedUseSelectorHook } from "react-redux";
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+```
+এতে প্রতিবার type লিখতে হয় না এবং autocomplete পাওয়া যায়।
+
+### State normalization কী? `createEntityAdapter` কী?
+Nested/duplicate data না রেখে id দিয়ে সমতল করে রাখা: `{ ids: [1,2], entities: { 1: {...}, 2: {...} } }`। আপডেট ও খোঁজা দ্রুত, duplicate কমে। `createEntityAdapter` এর `addOne`, `updateOne`, `removeOne`, `selectAll` ইত্যাদি তৈরি করা সুবিধা দেয়।
+
+### Redux DevTools কী কাজে লাগে?
+প্রতিটি action ও state এর আগে/পরে দেখা, **time-travel** (আগের অবস্থায় ফেরা), action replay, state diff। Debugging এ Redux এর বড় শক্তি।
+
+### Redux এ state persist (`redux-persist`) কীভাবে করবে? SSR এ সমস্যা কী?
+`redux-persist` store এর অংশ `localStorage` এ রাখে ও reload এ ফেরত আনে। `whitelist` দিয়ে শুধু দরকারি slice (যেমন auth, cart)।
+
+SSR (Next.js) এ সমস্যা: server এ `localStorage` নেই, তাই প্রথম render আর client এর rehydrate করা মান আলাদা হলে **hydration mismatch** হয়। সমাধান: `PersistGate`, client এ mount হওয়ার পর rehydrate, বা সংবেদনশীল নয় এমন অংশ cookie তে।
+
+### Redux এ কী রাখবে আর কী রাখবে না?
+রাখবেন: একাধিক জায়গায় লাগে এমন client state, জটিল business logic ও আপডেট নিয়ম।
+
+রাখবেন না: form এর প্রতিটি key press (React Hook Form), শুধু একটি component এ লাগা UI state, **server data** (React Query/RTK Query ভালো), serializable নয় এমন জিনিস (class, function, Promise, Date)। RTK serializability check এ warning দেয়।
+
+### Redux vs Redux Toolkit (পুরোনো Redux ও RTK এর পার্থক্য)
+- পুরোনো Redux: action type, action creator, switch reducer, নিজে immutable update, store setup এ অনেক boilerplate
+- RTK: `createSlice` এ সব একসাথে, Immer, thunk ও devtools ডিফল্ট, সহজ setup, RTK Query
+
+আজ নতুন কাজে সরাসরি পুরোনো Redux লেখা অফিসিয়ালি নিরুৎসাহিত।
+
+### Redux এ async data load এর আদর্শ উপায় কী?
+আগে সরাসরি thunk দিয়ে (`createAsyncThunk`) করা হতো। এখন server data এর জন্য **RTK Query** (বা React Query) ভালো, কারণ caching, refetch, loading/error state সব built-in। `createAsyncThunk` এখনও কাজের যখন API ছাড়া অন্য কোনো async logic আছে।
+
+### Redux এ একাধিক slice কীভাবে একসাথে সংযুক্ত হয়?
+`configureStore({ reducer: { cart, auth, users } })`। প্রতিটি slice নিজের অংশের reducer। একটি slice অন্য slice এর action শুনতে চাইলে `extraReducers` এ। Slice গুলো স্বাধীন রাখাই ভালো।
+
+## ৪. Zustand
+
+### Zustand কী? কেন জনপ্রিয়?
+Zustand হলো ছোট, দ্রুত ও সহজ state management library। এটি **hook ভিত্তিক**, Provider লাগে না, actions/reducers/dispatch লিখতে হয় না। Store হলো একটি hook।
+
+**আমার পছন্দের কারণ simplicity।** আমি feature-specific store তৈরি করতে পারি এবং state সরাসরি update করতে পারি, ফলে code অনেক পরিষ্কার হয় ও development speed বাড়ে।
+
+### Zustand এ store কীভাবে বানাবে ও ব্যবহার করবে?
+```js
+import { create } from "zustand";
+
+const useCartStore = create((set, get) => ({
+  items: [],
+  addItem: (item) =>
+    set((state) => {
+      const found = state.items.find((i) => i.id === item.id);
+      return found
+        ? { items: state.items.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i)) }
+        : { items: [...state.items, { ...item, qty: 1 }] };
+    }),
+  removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+  clear: () => set({ items: [] }),
+  total: () => get().items.reduce((sum, i) => sum + i.price * i.qty, 0),
+}));
+
+// component (Provider লাগে না)
+const items = useCartStore((s) => s.items);          // selector
+const addItem = useCartStore((s) => s.addItem);
+```
+
+### Zustand এ selector কেন গুরুত্বপূর্ণ? অকারণ re-render কীভাবে আটকায়?
+`useStore()` selector ছাড়া ডাকলে পুরো store এর যেকোনো পরিবর্তনে re-render হয়। `useStore((s) => s.count)` দিলে শুধু ওই মান বদলালে re-render হয়। (Context এ এই সুবিধা নেই।)
+
+একসাথে একাধিক মান নিতে নতুন object return করলে প্রতিবার নতুন reference হয়। সমাধান: **`useShallow`** (Zustand v5 এ নতুন object/array selector এ এটা না দিলে অনন্ত re-render এর ঝুঁকি)।
+
+```js
+import { useShallow } from "zustand/react/shallow";
+const { items, total } = useCartStore(useShallow((s) => ({ items: s.items, total: s.total })));
+```
+
+### Zustand এ `set` কীভাবে কাজ করে? Merge নাকি replace?
+`set` ডিফল্টে top-level এ **shallow merge** করে (Redux এর মতো পুরো replace নয়)। তাই শুধু বদলানো key দিলেই হয়। Nested object বদলাতে নিজে spread করতে হয় (বা `immer` middleware)। দ্বিতীয় argument `true` দিলে পুরো state replace হয়।
+
+### Zustand এর middleware গুলো কী কী?
+- **`persist`**: `localStorage`/`sessionStorage` এ সংরক্ষণ
+- **`devtools`**: Redux DevTools এ দেখা
+- **`immer`**: "mutate" এর মতো লেখা
+- **`subscribeWithSelector`**: নির্দিষ্ট অংশ বদলালে subscribe
+
+```js
+import { create } from "zustand";
+import { persist, devtools } from "zustand/middleware";
+
+const useAuth = create(
+  devtools(
+    persist(
+      (set) => ({
+        user: null,
+        login: (user) => set({ user }),
+        logout: () => set({ user: null }),
+      }),
+      { name: "auth-storage", partialize: (s) => ({ user: s.user }) }
+    )
+  )
+);
+```
+
+### Zustand এ async action কীভাবে লিখবে?
+Action এর ভেতরে সরাসরি `async` function, আলাদা thunk ছাড়া।
+
+```js
+const useUsers = create((set) => ({
+  users: [], loading: false, error: null,
+  fetchUsers: async () => {
+    set({ loading: true, error: null });
+    try {
+      const res = await fetch("/api/users");
+      set({ users: await res.json(), loading: false });
+    } catch (e) {
+      set({ error: e.message, loading: false });
+    }
+  },
+}));
+```
+Server data এর জন্য React Query ভালো, Zustand এ শুধু client state রাখা সুবিধাজনক।
+
+### React এর বাইরে Zustand store কীভাবে ব্যবহার করবে?
+Store এর নিজস্ব API আছে: `useStore.getState()`, `useStore.setState()`, `useStore.subscribe()`। Axios interceptor বা অন্য non-React code থেকে token পড়তে খুব কাজে লাগে।
+
+```js
+axios.interceptors.request.use((config) => {
+  const token = useAuth.getState().token;     // hook ছাড়াই
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+```
+
+### Zustand এ store কীভাবে ভাগ করবে? (slices pattern)
+বড় store কে ছোট ছোট slice function এ ভাগ করে একটিতে জোড়া যায়, অথবা feature অনুযায়ী আলাদা আলাদা store বানানো যায় (প্রতিটি `create`)।
+
+```js
+const createCartSlice = (set) => ({ items: [], add: (i) => set((s) => ({ items: [...s.items, i] })) });
+const createUiSlice = (set) => ({ open: false, toggle: () => set((s) => ({ open: !s.open })) });
+const useStore = create((...a) => ({ ...createCartSlice(...a), ...createUiSlice(...a) }));
+```
+
+### Next.js এ Zustand ব্যবহারে কী সতর্কতা?
+Server এ module-level global store **একাধিক user এর request এর মধ্যে শেয়ার** হয়ে state মিশে যেতে পারে (cross-request pollution)। সমাধান: প্রতি request/provider এ নতুন store তৈরি (`createStore` + Context Provider), শুধু Client Component এ ব্যবহার, আর `persist` এর hydration mismatch এড়ানো।
+
+### Zustand এ অন্য store এর state পড়া/আপডেট কীভাবে?
+এক store এর ভেতর থেকে অন্যটির `useOtherStore.getState()` ডাকা যায়। তবে store গুলোর মধ্যে বেশি নির্ভরতা এড়ানো ভালো।
+
+### Zustand এ derived state/computed value কীভাবে করবে?
+Selector এর ভেতরে হিসাব (`useStore((s) => s.items.length)`), বা store এ getter function (`total: () => get().items...`)। ভারী ও বারবার লাগলে `useMemo` বা আলাদা selector hook।
+
+## ৫. তুলনা ও সিদ্ধান্ত
+
+### Redux Toolkit vs Context API (তুলনা)
+- **Context**: React এ built-in। Prop drilling সমাধান করে। সহজ global state (theme, language, auth) এর জন্য ভালো। Boilerplate কম। Debugging tool সীমিত। Selector নেই।
+- **Redux Toolkit**: external library। জটিল state management সমাধান করে। বড় scale এর application এর জন্য। বেশি structure ও predictability। চমৎকার DevTools। জটিল business logic এর জন্য সেরা।
+
+### Redux Toolkit vs Zustand (তুলনা)
+- Redux Toolkit: একটি কেন্দ্রীয় (single) store, Actions + Reducers, `dispatch()` লাগে, বেশি boilerplate, structured architecture, বড় enterprise app এ ভালো
+- Zustand: একাধিক ছোট store (multi-store), সরাসরি state আপডেটের function, `dispatch()` নেই, minimal boilerplate, নমনীয় architecture, সহজ থেকে মাঝারি জটিলতার app এ ভালো
+
+Zustand আমার পছন্দ তার simplicity র জন্য: hook-based ও lightweight, actions/reducers/dispatch লিখতে হয় না, আর feature-specific store বানিয়ে সরাসরি state আপডেট করা যায়।
+
+### Zustand vs Context API
+- Zustand এ selector আছে (শুধু প্রয়োজনীয় অংশ বদলালে re-render), Provider লাগে না, React এর বাইরেও ব্যবহারযোগ্য, devtools/persist middleware আছে
+- Context এ built-in, কোনো বাড়তি dependency নেই, কিন্তু value বদলালে সব consumer re-render হয়
+
+ঘন ঘন বদলানো বা বড় state এ Zustand ভালো, কম বদলানো ও সরল (theme, auth) এ Context।
+
+### কোন সিদ্ধান্ত ফ্রেমওয়ার্ক দিয়ে state tool বেছে নেবে?
+- শুধু এক component: `useState`
+- কয়েকটি কাছাকাছি component: state উপরে তোলা (lifting)
+- সহজ ও কম বদলায় এমন global (theme, auth, locale): **Context**
+- মাঝারি client state, কম boilerplate চাই: **Zustand**
+- বড় দল, জটিল logic, devtools/time-travel, কঠোর structure: **Redux Toolkit**
+- API data: **React Query / RTK Query** (আলাদা, server state)
+- Filter/page/search: **URL**
+- Form: **React Hook Form**
+
+### Redux ও Zustand কোনটি বেশি performance দেয়?
+দুটোই selector দিয়ে অকারণ re-render আটকাতে পারে, তাই বাস্তবে পার্থক্য কম। Context এর তুলনায় দুটোই ভালো। আসল পার্থক্য developer experience ও structure এ।
+
+### Server state ও client state আলাদা করে ভাবা কেন গুরুত্বপূর্ণ?
+Server state server এর data এর একটি কপি, তাই stale হতে পারে ও caching, refetch, sync দরকার। Redux/Zustand এ API data রাখলে এসব নিজে লিখতে হয় এবং ভুল হয়। তাই server data এর জন্য React Query/RTK Query আর client state এর জন্য Zustand/Redux আলাদা ব্যবহার করা ভালো।
+
+### State management library ছাড়া কি বড় app বানানো যায়?
+হ্যাঁ, যদি state সঠিকভাবে ভাগ করা হয়: server data এর জন্য React Query, form এর জন্য React Hook Form, filter এর জন্য URL, আর বাকি ছোট UI state `useState` এ। তখন সত্যিকারের "global client state" অনেক কম হয়, এবং Context বা সামান্য Zustand ই যথেষ্ট হয়ে যায়।
+
+## ৬. Server State: Axios, Fetch, React Query, RTK Query
+
+### What is Axios and what makes it different? (Axios কী? কী আলাদা?)
+Axios হলো একটি JavaScript HTTP client, browser ও Node.js থেকে API request পাঠাতে ব্যবহার হয়। মূল পার্থক্য: Axios এ built-in সুবিধা আছে যেমন automatic JSON parsing, **interceptors**, ভালো error handling, সহজ global configuration। অন্যদিকে native Fetch API তুলনামূলক basic এবং আরও manual কাজ করতে হয়।
+
+**Interview answer:** "Axios is a JavaScript HTTP client used to make API requests from the browser or Node.js. The main difference is that Axios provides extra built-in features like automatic JSON parsing, interceptors, better error handling, and easy global configuration, whereas the native Fetch API is more basic and requires more manual handling."
+
+### Axios আর Fetch এর মধ্যে পার্থক্য (বিস্তারিত)
+- **JSON**: Axios নিজে parse করে (`res.data`), Fetch এ `res.json()` ডাকতে হয়
+- **Error**: Axios 4xx/5xx এ error throw করে, Fetch **শুধু network failure এ** reject করে (HTTP 404/500 এ resolve), তাই `res.ok` হাতে দেখতে হয়
+- **Interceptor**: Axios এ আছে (token যোগ, global error), Fetch এ নেই (wrapper লিখতে হয়)
+- **Timeout/cancel**: Axios এ `timeout` option, Fetch এ `AbortController` লাগে (Axios ও এখন এটা সাপোর্ট করে)
+- **Upload progress**: Axios এ সহজ
+- **Bundle**: Fetch built-in (কোনো বাড়তি size নেই), Axios একটি dependency
+- Next.js এ server side এ Next এর patch করা `fetch` ব্যবহার করলে caching/revalidate পাওয়া যায়, Axios এ সেটা আসে না
+
+### When would you still use Axios? (কখন এখনও Axios ব্যবহার করবে?)
+আমি Axios ব্যবহার করি যখন একটি centralized API layer লাগে যেখানে authentication এর জন্য interceptors, global error handling, request/response transformation এবং app জুড়ে consistent configuration দরকার। মাঝারি থেকে বড় application এ যেখানে অনেক API call পরিষ্কার ও maintainable ভাবে সামলাতে হয়।
+
+```js
+import axios from "axios";
+
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 10000,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");       // বা store/cookie
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // token refresh বা logout
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### Why use React Query instead of Axios? (Axios থাকতে useQuery কেন?)
+Axios আর React Query তুলনীয় নয়, কারণ কাজ আলাদা। Axios হলো শুধু **HTTP client** (request পাঠানোর), আর React Query হলো **server state management** library।
+
+আমি React Query (TanStack Query) ব্যবহার করি যখন শুধু data আনা নয়, **server state manage করা** দরকার। React Query দেয় built-in caching, background refetching, automatic loading ও error state, data synchronization। Axios এ এগুলো সবই নিজে হাতে করতে হয়।
+
+বাস্তবে দুটো একসাথেই ব্যবহার করা হয়: `queryFn` এর ভেতরে Axios দিয়ে request পাঠানো হয়, আর React Query সেই data সামলায়।
+
+```jsx
+const { data, isPending, error } = useQuery({
+  queryKey: ["products", page],
+  queryFn: () => api.get("/products", { params: { page } }).then((r) => r.data),
+  staleTime: 60_000,
+});
+```
+
+### React Query (TanStack Query) এর মূল ধারণা গুলো কী কী?
+- **Query**: data পড়া (`useQuery`), **Mutation**: data বদলানো (`useMutation`)
+- **`queryKey`**: cache এর identity, key বদলালে নতুন করে আনে
+- **`staleTime`**: কতক্ষণ data "fresh" (ডিফল্ট 0)। Fresh থাকলে refetch হয় না
+- **`gcTime`** (আগে `cacheTime`): অব্যবহৃত data কতক্ষণ memory তে থাকবে (ডিফল্ট ৫ মিনিট)
+- **Background refetch**: window focus, reconnect, mount এ (ডিফল্ট চালু)
+- **Retry**: ব্যর্থ হলে ডিফল্টে ৩ বার
+- **Deduplication**: একই key এর একাধিক request একটি হয়ে চলে
+- **`invalidateQueries`**: mutation এর পর cache পুরোনো ঘোষণা করে refetch
+- `enabled`, `select`, `placeholderData`, `useInfiniteQuery`, DevTools
+
+### React Query তে mutation ও cache invalidation কীভাবে করবে?
+```jsx
+const queryClient = useQueryClient();
+
+const addTodo = useMutation({
+  mutationFn: (todo) => api.post("/todos", todo),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["todos"] });   // তালিকা আবার আনো
+  },
+});
+addTodo.mutate({ title: "Learn" });
+```
+
+### React Query তে optimistic update কীভাবে করবে?
+```jsx
+useMutation({
+  mutationFn: toggleTodo,
+  onMutate: async (id) => {
+    await queryClient.cancelQueries({ queryKey: ["todos"] });
+    const prev = queryClient.getQueryData(["todos"]);              // rollback এর জন্য
+    queryClient.setQueryData(["todos"], (old) =>
+      old.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
+    return { prev };
+  },
+  onError: (_e, _id, ctx) => queryClient.setQueryData(["todos"], ctx.prev),   // rollback
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+});
+```
+
+### `isLoading`, `isFetching` আর `isPending` এর পার্থক্য কী? (React Query)
+- `isPending` (v5): data এখনো নেই (প্রথমবার লোড বা mutation চলছে)
+- `isFetching`: যেকোনো fetch চলছে (background refetch সহ)
+- `isLoading` (v5): `isPending && isFetching`, অর্থাৎ প্রথমবার আনা চলছে
+
+প্রথম লোডে spinner, background refetch এ ছোট indicator, এমন UI সাজানো যায়।
+
+### React Query vs RTK Query
+React Query (TanStack Query) ও RTK Query দুটোই **server state** সামলায়। React Query **framework-agnostic** (Redux লাগে না) ও অনেক নমনীয়, caching, refetch ও background update built-in। RTK Query Redux Toolkit এর সাথে গভীরভাবে যুক্ত, তাই app এ ইতিমধ্যে Redux থাকলে এবং state ও API management এক জায়গায় চাইলে ভালো পছন্দ।
+
+**Interview answer:** "React Query (TanStack Query) and RTK Query both solve server-state management, but React Query is framework-agnostic and very flexible with built-in caching, refetching, and background updates, while RTK Query is tightly integrated with Redux Toolkit, making it a better choice when the app already uses Redux and you want a unified state + API management system."
+
+### When should we choose RTK Query? (কখন RTK Query বেছে নেবে?)
+আমি RTK Query বেছে নিই যখন application এ ইতিমধ্যে Redux Toolkit ব্যবহার হচ্ছে এবং server state manage করার একটি scalable সমাধান দরকার। এটি built-in caching, auto-refetching, loading/error handling দেয় এবং API logic সরাসরি Redux এর সাথে integrate করে। অনেক component একই API data শেয়ার করে এমন বড় application (e-commerce, OTA system) এর জন্য আদর্শ।
+
+### RTK Query কীভাবে লিখবে? (`createApi`, tags)
+```js
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+
+export const api = createApi({
+  reducerPath: "api",
+  baseQuery: fetchBaseQuery({
+    baseUrl: "/api",
+    prepareHeaders: (headers, { getState }) => {
+      const token = getState().auth.token;
+      if (token) headers.set("authorization", `Bearer ${token}`);
+      return headers;
+    },
+  }),
+  tagTypes: ["Post"],
+  endpoints: (build) => ({
+    getPosts: build.query({
+      query: () => "/posts",
+      providesTags: ["Post"],
+    }),
+    addPost: build.mutation({
+      query: (body) => ({ url: "/posts", method: "POST", body }),
+      invalidatesTags: ["Post"],          // নতুন post হলে getPosts নিজে refetch হবে
+    }),
+  }),
+});
+export const { useGetPostsQuery, useAddPostMutation } = api;
+
+// store এ: reducer: { [api.reducerPath]: api.reducer }, middleware: (g) => g().concat(api.middleware)
+// component: const { data, isLoading, error } = useGetPostsQuery();
+```
+
+### SWR কী? React Query এর সাথে পার্থক্য কী?
+SWR (Vercel) এর নাম "stale-while-revalidate" থেকে: আগে cache এর পুরোনো data দেখায়, পিছনে নতুন আনে। হালকা ও সহজ, `useSWR(key, fetcher)`। React Query তে বেশি feature (mutation, devtools, infinite query, বিস্তারিত নিয়ন্ত্রণ)। ছোট কাজে SWR, বড় কাজে React Query।
+
+### Server state এর জন্য `useEffect + useState` এর সমস্যা কী?
+নিজে হাতে লিখলে caching, deduplication, retry, race condition, refetch, loading/error, pagination সব নিজেকে সামলাতে হয়। Strict Mode এ দুইবার call ও আসে। React Query/RTK Query এগুলো সমাধান করে দেয়।
+
+## ৭. বড় Application এ State পরিচালনা
+
+### How do you manage global state in a large application? (বড় application এ global state কীভাবে সামলাবে?)
+বড় application এ আমি state কে তিন ভাগে ভাগ করি: **UI state, client state, server state।**
+
+- **UI state**: component এর নিজস্ব, যেমন modal খোলা/বন্ধ, form input, toggle। আমি `useState` বা `useReducer` ব্যবহার করি।
+- **Client state**: একাধিক component এ শেয়ার হওয়া, যেমন filter, cart data, user information, authentication state। এর জন্য আমি **Redux Toolkit (বা Zustand)** ব্যবহার করি, কারণ এটি shared application state সামলানোর একটি কেন্দ্রীভূত ও predictable উপায় দেয়।
+- **Server state**: API থেকে আসা data, যেমন product, booking, search result। এর জন্য আমি **RTK Query** পছন্দ করি, কারণ এটি API call, caching, synchronization ও automatic refetching সামলায়, ফলে manual কাজ কমে এবং data consistent থাকে।
+
+এই ভাগ করলে application scalable, maintainable ও debug করা সহজ থাকে।
+
+### একটি e-commerce বা OTA app এ state কীভাবে ভাগ করবে? (উদাহরণ)
+- **Server state** (RTK Query/React Query): product list, hotel search result, booking history, order
+- **Client state** (Redux Toolkit/Zustand): cart, selected filter, logged in user, checkout এর ধাপ
+- **UI state** (`useState`): filter panel খোলা, image gallery এর সক্রিয় ছবি, modal
+- **URL state**: search query, page, sort (শেয়ারযোগ্য)
+- **Form state** (React Hook Form): booking form এর ফিল্ড
+
+### Search filter, pagination ও sorting এর state কোথায় রাখবে?
+সবচেয়ে ভালো হলো **URL এ** (`?q=dhaka&page=2&sort=price`)। এতে share করা যায়, reload ও back button কাজ করে, আর server state (`queryKey`) এ সেটা ঢোকানো যায়। Redux/Zustand এ রাখলে URL এর সাথে sync রাখার বাড়তি কাজ থাকে। জটিল, বহু-ধাপ filter এ store ও ব্যবহার করা যায়।
+
+### State management এর সাধারণ ভুলগুলো কী কী?
+- সবকিছু global store এ ঢোকানো
+- API data Redux/Zustand এ নিজে হাতে রাখা (React Query/RTK Query থাকতে)
+- Derived data আলাদা state এ রাখা (sync ভাঙে)
+- Context এ ঘন ঘন বদলানো বড় state রাখা
+- State mutate করা
+- Selector ছাড়া পুরো store subscribe করা (অকারণ re-render)
+- Non-serializable মান Redux এ রাখা
+
+## ৮. Output ও Bug খুঁজে বের করা
+
+### Q1: Redux এ UI আপডেট হচ্ছে না। কেন?
+```js
+// reducer (পুরোনো Redux, Immer ছাড়া)
+case "add":
+  state.items.push(action.payload);
+  return state;
+```
+উত্তর: state mutate করা হয়েছে এবং একই reference return হয়েছে, তাই Redux/React কোনো পরিবর্তন ধরতে পারে না। নতুন object/array return করুন:
+```js
+return { ...state, items: [...state.items, action.payload] };
+```
+(RTK এর `createSlice` এ Immer থাকায় `state.items.push(...)` ঠিক আছে।)
+
+### Q2: `useSelector` এ অকারণ re-render হচ্ছে। কেন?
+```js
+const { a, b } = useSelector((s) => ({ a: s.a, b: s.b }));
+```
+উত্তর: selector প্রতিবার নতুন object return করে, তাই `===` তুলনায় সবসময় আলাদা। আলাদা আলাদা selector দিন (`useSelector(s => s.a)`) বা `shallowEqual`/`createSelector` ব্যবহার করুন।
+
+### Q3: Context এর একটি value বদলালে সব component re-render হয়। কেন, কীভাবে ঠিক করবে?
+```jsx
+<AppContext.Provider value={{ user, theme, cart }}>
+```
+উত্তর: কোনো একটি বদলালে নতুন object হয়ে সব consumer re-render হয়, এমনকি যারা শুধু `theme` ব্যবহার করে তারাও। সমাধান: বিষয় অনুযায়ী আলাদা context (`UserContext`, `ThemeContext`, `CartContext`), `value` `useMemo` তে, অথবা Zustand/Redux (selector সহ)।
+
+### Q4: Zustand v5 এ "Maximum update depth exceeded" error কেন?
+```js
+const { a, b } = useStore((s) => ({ a: s.a, b: s.b }));
+```
+উত্তর: selector প্রতিবার নতুন object return করে, যা Zustand v5 এ অনন্ত re-render ঘটায়। `useShallow` দিয়ে মুড়ে দিন, বা আলাদা selector ব্যবহার করুন।
+
+### Q5: Redux এ async thunk এর পর loading কখনো শেষ হচ্ছে না। কেন হতে পারে?
+```js
+extraReducers: (b) => b.addCase(fetchUsers.fulfilled, (s, a) => { s.list = a.payload; })
+// pending/rejected handle করা নেই
+```
+উত্তর: `pending`/`rejected` case নেই, তাই `status` কখনো `loading` বা `failed` হয় না; error হলে loading আটকে থাকে। তিনটি case ই handle করুন, আর thunk এ `rejectWithValue` ব্যবহার করুন।
+
+### Q6: React Query তে mutation এর পরও তালিকা পুরোনো দেখাচ্ছে। কেন?
+```js
+useMutation({ mutationFn: addTodo })   // onSuccess এ কিছু নেই
+```
+উত্তর: cache ঝাড়া হয়নি। `onSuccess` এ `queryClient.invalidateQueries({ queryKey: ["todos"] })` দিন (RTK Query তে `invalidatesTags`), অথবা `setQueryData` দিয়ে সরাসরি আপডেট করুন।
+
+## ৯. Live Coding
+
+### Context + `useReducer` দিয়ে Cart বানাও
+```jsx
+const CartContext = createContext(null);
+
+function cartReducer(state, action) {
+  switch (action.type) {
+    case "add": {
+      const found = state.find((i) => i.id === action.item.id);
+      return found
+        ? state.map((i) => (i.id === found.id ? { ...i, qty: i.qty + 1 } : i))
+        : [...state, { ...action.item, qty: 1 }];
+    }
+    case "remove": return state.filter((i) => i.id !== action.id);
+    case "clear": return [];
+    default: return state;
+  }
+}
+
+export function CartProvider({ children }) {
+  const [items, dispatch] = useReducer(cartReducer, []);
+  const total = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
+  const value = useMemo(() => ({ items, total, dispatch }), [items, total]);
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+export const useCart = () => {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be inside CartProvider");
+  return ctx;
+};
+```
+
+### Redux Toolkit দিয়ে Cart বানাও (store সহ)
+```js
+// features/cart/cartSlice.js
+import { createSlice, createSelector } from "@reduxjs/toolkit";
+
+const cartSlice = createSlice({
+  name: "cart",
+  initialState: { items: [] },
+  reducers: {
+    addItem(state, { payload }) {
+      const found = state.items.find((i) => i.id === payload.id);
+      found ? (found.qty += 1) : state.items.push({ ...payload, qty: 1 });
+    },
+    removeItem(state, { payload: id }) {
+      state.items = state.items.filter((i) => i.id !== id);
+    },
+    clearCart: (state) => { state.items = []; },
+  },
+});
+export const { addItem, removeItem, clearCart } = cartSlice.actions;
+export const selectTotal = createSelector(
+  [(s) => s.cart.items],
+  (items) => items.reduce((sum, i) => sum + i.price * i.qty, 0)
+);
+export default cartSlice.reducer;
+
+// app/store.js
+import { configureStore } from "@reduxjs/toolkit";
+export const store = configureStore({ reducer: { cart: cartReducer } });
+
+// component
+const items = useSelector((s) => s.cart.items);
+const total = useSelector(selectTotal);
+const dispatch = useDispatch();
+<button onClick={() => dispatch(addItem(product))}>Add</button>
+```
+
+### Zustand দিয়ে Cart বানাও (persist সহ)
+```js
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export const useCart = create(
+  persist(
+    (set, get) => ({
+      items: [],
+      add: (p) => set((s) => {
+        const f = s.items.find((i) => i.id === p.id);
+        return { items: f ? s.items.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i)) : [...s.items, { ...p, qty: 1 }] };
+      }),
+      remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+      clear: () => set({ items: [] }),
+      total: () => get().items.reduce((sum, i) => sum + i.price * i.qty, 0),
+    }),
+    { name: "cart" }
+  )
+);
+
+// component (Provider নেই)
+const items = useCart((s) => s.items);
+const add = useCart((s) => s.add);
+```
+
+### Auth store (Zustand) ও Axios interceptor এ token ব্যবহার
+```js
+export const useAuth = create(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      login: (user, token) => set({ user, token }),
+      logout: () => set({ user: null, token: null }),
+    }),
+    { name: "auth", partialize: (s) => ({ user: s.user, token: s.token }) }
+  )
+);
+
+api.interceptors.request.use((config) => {
+  const { token } = useAuth.getState();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+api.interceptors.response.use(undefined, (err) => {
+  if (err.response?.status === 401) useAuth.getState().logout();
+  return Promise.reject(err);
+});
+```
+
+### React Query দিয়ে paginated list ও mutation
+```jsx
+function Products() {
+  const [page, setPage] = useState(1);
+  const { data, isPending, isFetching, error } = useQuery({
+    queryKey: ["products", page],
+    queryFn: () => api.get("/products", { params: { page, limit: 10 } }).then((r) => r.data),
+    placeholderData: (prev) => prev,          // পাতা বদলের সময় আগের data দেখাও
+    staleTime: 30_000,
+  });
+  if (isPending) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  return (
+    <>
+      <ul>{data.items.map((p) => <li key={p.id}>{p.name}</li>)}</ul>
+      <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
+      <button onClick={() => setPage((p) => p + 1)}>Next</button>
+      {isFetching && <span>Updating...</span>}
+    </>
+  );
+}
+```
+
+### RTK Query দিয়ে list ও add (auto refetch সহ)
+```jsx
+function Posts() {
+  const { data: posts = [], isLoading, error } = useGetPostsQuery();
+  const [addPost, { isLoading: adding }] = useAddPostMutation();
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error</p>;
+  return (
+    <>
+      <button disabled={adding} onClick={() => addPost({ title: "New" })}>Add</button>
+      <ul>{posts.map((p) => <li key={p.id}>{p.title}</li>)}</ul>
+    </>
+  );
+}
+// addPost সফল হলে invalidatesTags এর কারণে getPosts নিজে refetch হয়
+```
+
+### Custom hook: `useLocalStorage` ও `useDebounce`
+```jsx
+function useLocalStorage(key, initial) {
+  const [value, setValue] = useState(() => {
+    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : initial; }
+    catch { return initial; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }, [key, value]);
+  return [value, setValue];
+}
+
+function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+```
+
+### Theme toggle: Context আর Zustand এ তুলনা
+```jsx
+// Context
+const ThemeCtx = createContext();
+const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState("light");
+  const value = useMemo(() => ({ theme, toggle: () => setTheme((t) => (t === "light" ? "dark" : "light")) }), [theme]);
+  return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
+};
+const { theme, toggle } = useContext(ThemeCtx);
+
+// Zustand (Provider ছাড়া)
+const useTheme = create((set) => ({
+  theme: "light",
+  toggle: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+}));
+const theme = useTheme((s) => s.theme);
+```
+</script>
+
+<script type="text/plain" id="content-auth">
+## ১. Authentication ও Authorization Basics
+
+### What is Authentication? (Authentication কী?)
+Authentication হলো **পরিচয় যাচাই** করার প্রক্রিয়া, অর্থাৎ "তুমি কে?"।
+
+উদাহরণ:
+
+- Email + password দিয়ে login
+- Google দিয়ে login (social login)
+- OTP verification
+- Fingerprint/face, passkey
+
+**Interview answer:** "Authentication is the process of verifying identity."
+
+### What is Authorization? (Authorization কী?)
+Authorization হলো login এর **পরে অনুমতি (permission) যাচাই** করা, অর্থাৎ "তুমি কী করতে পারো?"।
+
+উদাহরণ: সাধারণ user শুধু নিজের order দেখতে পারে, admin সব user এর data দেখতে ও মুছতে পারে।
+
+**Interview answer:** "Authorization is the process of checking permissions after login."
+
+### Authentication vs Authorization (পার্থক্য)
+- **উদ্দেশ্য**: Authentication পরিচয় যাচাই করে, Authorization অনুমতি যাচাই করে
+- **প্রশ্ন**: "Who are you?" বনাম "What can you do?"
+- **ক্রম**: Authentication আগে, Authorization তার পরে
+- **ভিত্তি**: Authentication এর ভিত্তি credential (password, OTP, OAuth), Authorization এর ভিত্তি role, policy, permission
+- **ব্যর্থ হলে**: Authentication ব্যর্থ হলে login করা যায় না (`401 Unauthorized`), Authorization ব্যর্থ হলে access denied (`403 Forbidden`)
+
+### 401 আর 403 এর পার্থক্য কী?
+- **401 Unauthorized**: পরিচয় প্রমাণিত নয় (login করেননি, token নেই বা মেয়াদ শেষ/অবৈধ)। আসলে "unauthenticated" বোঝায়।
+- **403 Forbidden**: পরিচয় জানা আছে, কিন্তু এই কাজের অনুমতি নেই।
+
+Frontend এ 401 এ সাধারণত token refresh বা login এ পাঠানো হয়, 403 এ "অনুমতি নেই" বার্তা দেখানো হয়।
+
+### Identification, Authentication, Authorization ও Accounting (AAA) কী?
+- **Identification**: "আমি X" দাবি করা (username)
+- **Authentication**: সেই দাবির প্রমাণ (password)
+- **Authorization**: কী করতে দেওয়া হবে
+- **Accounting/Auditing**: কে কখন কী করল তার রেকর্ড (audit log)
+
+### Authentication এর পদ্ধতিগুলো কী কী?
+- **Something you know**: password, PIN
+- **Something you have**: OTP (phone), hardware key, authenticator app
+- **Something you are**: fingerprint, face
+- সাথে: social login (OAuth/OIDC), magic link, passkey (WebAuthn), SSO
+
+দুটি ভিন্ন ধরন মেলালে এটি **Multi-Factor Authentication (MFA)**।
+
+## ২. Session, Token ও Stateless Authentication
+
+### What is stateless authentication? (Stateless authentication কী?)
+Stateless authentication এমন পদ্ধতি যেখানে server user এর কোনো **session তথ্য নিজের কাছে সংরক্ষণ করে না**। বদলে প্রয়োজনীয় সব authentication data প্রতিটি request এর সাথে পাঠানো হয় (সাধারণত JWT এর মতো token এ)।
+
+Server শুধু token এর signature যাচাই করে সিদ্ধান্ত নেয়।
+
+### Session-based (stateful) আর token-based (stateless) authentication এর পার্থক্য কী?
+- **Session-based (stateful)**: login এ server একটি session তৈরি করে (memory/Redis/DB তে) এবং `session id` cookie তে পাঠায়। প্রতি request এ server সেই id দিয়ে session খোঁজে। সহজে বাতিল (revoke) করা যায়। কিন্তু server এ store লাগে ও scale এ shared store (Redis) দরকার।
+- **Token-based (stateless, JWT)**: user এর তথ্য signed token এ থাকে, server কিছু সংরক্ষণ করে না। Scale ও microservice এ সহজ। কিন্তু token মেয়াদের আগে বাতিল করা কঠিন।
+
+কোনটা ভালো তা প্রয়োজনের উপর: সহজ web app এ session চমৎকার, অনেক service/mobile app এ JWT সুবিধাজনক।
+
+### Explain JWT authentication. (JWT authentication ব্যাখ্যা করো)
+JWT মানে **JSON Web Token**। JWT authentication হলো একটি stateless authentication ব্যবস্থা যেখানে server কোনো session data সংরক্ষণ করে না। বদলে user এর পরিচয় সংক্রান্ত সব তথ্য একটি **signed token** এর ভেতরেই থাকে।
+
+এর ৩টি অংশ: **Header, Payload, Signature** (`xxxxx.yyyyy.zzzzz`)।
+
+**সুবিধা:**
+
+- Stateless (session storage লাগে না)
+- Scalable (microservices এ ভালো কাজ করে)
+- দ্রুত authentication
+- বিভিন্ন domain/platform এ কাজ করে (API, mobile app)
+
+**Interview answer:** "JWT means JSON Web Token. JWT authentication is a stateless authentication mechanism where the server does not store session data. Instead, all user identity information is stored inside a signed token. It has three parts: header, payload, and signature."
+
+### Login থেকে protected API পর্যন্ত JWT এর flow কী?
+```
+১. User email + password পাঠায়
+২. Server যাচাই করে, JWT তৈরি করে (secret দিয়ে sign)
+৩. Client token সংরক্ষণ করে (cookie)
+৪. প্রতিটি request এ token যায় (Authorization: Bearer <token> বা cookie)
+৫. Server signature ও মেয়াদ যাচাই করে, payload থেকে user জানে
+৬. বৈধ হলে data দেয়, নইলে 401
+```
+
+### JWT এর header, payload ও signature কী কী?
+- **Header**: algorithm ও type (`{ "alg": "HS256", "typ": "JWT" }`)
+- **Payload**: claim (দাবি) যেমন `sub` (user id), `role`, `iat` (কখন তৈরি), `exp` (মেয়াদ শেষ)
+- **Signature**: header + payload কে secret/private key দিয়ে sign করা ফল। এটা tamper আটকায়।
+
+প্রতিটি অংশ **Base64URL** এ এনকোড করা।
+
+**গুরুত্বপূর্ণ:** Payload **এনক্রিপ্ট করা নয়**, শুধু এনকোড। যে কেউ ডিকোড করে পড়তে পারে। তাই payload এ password, সংবেদনশীল তথ্য রাখবেন না। Signature শুধু নিশ্চিত করে যে data বদলানো হয়নি (integrity), গোপন রাখে না।
+
+### JWT এর সাধারণ claim গুলো কী কী?
+- `sub` (subject): user id
+- `iat`: তৈরির সময়
+- `exp`: মেয়াদ শেষের সময়
+- `nbf`: এর আগে বৈধ নয়
+- `iss` (issuer): কে issue করল
+- `aud` (audience): কার জন্য
+- `jti`: token এর unique id (বাতিল তালিকার জন্য কাজে লাগে)
+
+### HS256 আর RS256 এর পার্থক্য কী?
+- **HS256 (HMAC, symmetric)**: sign ও verify একই secret দিয়ে। সহজ, কিন্তু যে verify করবে তার কাছেও secret থাকতে হয়।
+- **RS256/ES256 (asymmetric)**: **private key** দিয়ে sign, **public key** দিয়ে verify। Microservice এ ভালো: শুধু auth service এর কাছে private key, বাকিরা public key দিয়ে যাচাই করতে পারে।
+
+### JWT এর অসুবিধা ও সীমাবদ্ধতা কী?
+- **বাতিল করা কঠিন**: stateless হওয়ায় মেয়াদ শেষের আগে logout বা ব্যবহারকারী নিষিদ্ধ করা সহজ নয়
+- Token চুরি হলে মেয়াদ পর্যন্ত চোর ব্যবহার করতে পারে
+- Payload পড়া যায় (গোপন তথ্য রাখা যাবে না)
+- Token বড় হলে প্রতি request এ বাড়তি size
+- Permission বদলালেও পুরোনো token এ পুরোনো role থাকে (মেয়াদ পর্যন্ত)
+
+### JWT বাতিল (revoke) করার উপায় কী?
+- **ছোট মেয়াদ** (access token ৫-১৫ মিনিট), আর লম্বা মেয়াদের **refresh token** server এ সংরক্ষিত/নিয়ন্ত্রিত
+- **Denylist/blocklist** (Redis এ `jti` রেখে বাতিল token আটকানো)
+- **Token versioning**: user এ `tokenVersion` রেখে, বদলালে পুরোনো token অবৈধ
+- Password বদল/logout এ refresh token মুছে ফেলা
+- সংবেদনশীল কাজে আবার server এ যাচাই
+
+### JWT এর নিরাপত্তা সংক্রান্ত সাধারণ ভুল কী কী?
+- `alg: none` গ্রহণ করা বা algorithm যাচাই না করা (সবসময় নির্দিষ্ট algorithm চাপিয়ে verify করুন)
+- Secret দুর্বল বা code এ hardcode
+- মেয়াদ (`exp`) না দেওয়া বা অনেক লম্বা মেয়াদ
+- `localStorage` এ token রাখা (XSS এ চুরি যায়)
+- Payload এ সংবেদনশীল data
+- `iss`/`aud` যাচাই না করা
+- Verify না করে শুধু decode করে ভরসা করা
+
+### Access token আর refresh token এর পার্থক্য কী?
+- **Access token**: API access এর জন্য, **ছোট মেয়াদ** (৫-১৫ মিনিট)। চুরি হলে ক্ষতির সময় সীমিত।
+- **Refresh token**: শুধু নতুন access token পেতে, **লম্বা মেয়াদ** (৭-৩০ দিন)। নিরাপদে (HttpOnly cookie) রাখা হয়, শুধু refresh endpoint এ যায়।
+
+এতে সুবিধা: ঘন ঘন login করতে হয় না, আবার access token চুরি হলেও দ্রুত মেয়াদ শেষ।
+
+## ৩. Cookie, Storage ও নিরাপত্তা
+
+### Token কোথায় সংরক্ষণ করবে? (Cookie vs localStorage)
+- **HttpOnly cookie** (সবচেয়ে নিরাপদ পরামর্শ): JavaScript পড়তে পারে না, তাই XSS এ চুরি হয় না। `Secure` ও `SameSite` সহ দিন।
+- **localStorage/sessionStorage**: সহজ, কিন্তু যেকোনো XSS script সহজে token পড়ে নিতে পারে।
+- **Memory (JS variable)**: reload এ হারায়, কিন্তু XSS এর ঝুঁকি কম। Access token এর জন্য, আর refresh token cookie তে, এমন সমন্বয় অনেকে ব্যবহার করে।
+
+**Interview answer:** "I store tokens in HTTP-only, Secure, SameSite cookies because they cannot be accessed by JavaScript, which protects against XSS token theft. localStorage is easier but exposes tokens to any injected script."
+
+### Cookie এর `HttpOnly`, `Secure`, `SameSite` flag গুলো কী?
+- **`HttpOnly`**: `document.cookie` থেকে JS পড়তে পারে না (XSS এ চুরি আটকায়)
+- **`Secure`**: শুধু HTTPS এ পাঠায়
+- **`SameSite`**: অন্য site থেকে request এ cookie পাঠানো নিয়ন্ত্রণ করে। `Strict` (কখনো না), `Lax` (শুধু নিরাপদ top-level navigation), `None` (সবসময়, `Secure` লাগে)। CSRF এর বিরুদ্ধে প্রধান ঢাল।
+- `Path`, `Domain`, `Max-Age/Expires`: সীমানা ও মেয়াদ
+
+### XSS আর CSRF কী? Authentication এর সাথে সম্পর্ক কী?
+- **XSS**: আক্রমণকারী পেজে ক্ষতিকর script ঢুকিয়ে দেয়, যা token চুরি বা user এর হয়ে কাজ করতে পারে। প্রতিরোধ: input/output escape, CSP, `HttpOnly` cookie, `dangerouslySetInnerHTML` এড়ানো।
+- **CSRF**: user login থাকা অবস্থায় অন্য site থেকে তার নামে request পাঠানো (cookie নিজে থেকে যায়)। প্রতিরোধ: `SameSite` cookie, CSRF token, `Origin` যাচাই।
+
+Cookie ভিত্তিক auth এ CSRF এর ঝুঁকি আছে, আর `Authorization` header এ (localStorage) token থাকলে XSS এর ঝুঁকি বেশি।
+
+### CORS এর সাথে credentials (cookie) পাঠানোর নিয়ম কী?
+Cross-origin request এ cookie পাঠাতে:
+
+- Client এ `credentials: "include"` (fetch) বা `withCredentials: true` (Axios)
+- Server এ `Access-Control-Allow-Credentials: true` এবং **নির্দিষ্ট origin** (`*` চলে না)
+- Cookie তে `SameSite=None; Secure` (যদি আলাদা site হয়)
+
+### Session fixation কী? কীভাবে ঠেকাবে?
+আক্রমণকারী আগে থেকে একটি session id ঠিক করে ভুক্তভোগীকে ব্যবহার করতে বাধ্য করে, তারপর ভুক্তভোগী login করলে সেই id দিয়ে ঢুকে পড়ে। প্রতিরোধ: **login এর পর নতুন session id তৈরি করা** (regenerate)।
+
+## ৪. Token Refresh ও Session Expiration
+
+### How would you handle token refresh? (Token refresh কীভাবে সামলাবে?)
+Next.js বা React app এ token refresh সাধারণত frontend ও backend দুটো মিলে হয়।
+
+- **Backend**: refresh token validate করে নতুন access token তৈরি করে।
+- **Frontend**: expired access token এ `401` পেলে স্বয়ংক্রিয়ভাবে refresh endpoint call করে নতুন token নেয় এবং **ব্যর্থ হওয়া request আবার চালায়** (retry)।
+- নিরাপত্তার জন্য refresh token সাধারণত **secure HttpOnly cookie** তে রাখা হয়।
+- Next.js middleware দিয়ে route protect করা যায়, তবে মূল refresh logic সাধারণত frontend এর **API interceptor** ও backend এর **authentication endpoint** এ থাকে।
+
+### Axios interceptor দিয়ে token refresh (একসাথে অনেক 401 হলে একবারই refresh) কীভাবে করবে?
+```js
+let refreshPromise = null;
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true;                      // অনন্ত loop আটকাতে
+      if (!refreshPromise) {
+        refreshPromise = axios
+          .post("/api/auth/refresh", null, { withCredentials: true })
+          .finally(() => { refreshPromise = null; });
+      }
+      try {
+        const { data } = await refreshPromise;     // সবাই একই refresh এর ফলের অপেক্ষা করে
+        setAccessToken(data.accessToken);
+        original.headers.Authorization = `Bearer ${data.accessToken}`;
+        return api(original);                      // আগের request আবার
+      } catch (e) {
+        logout();                                  // refresh ব্যর্থ, login এ পাঠাও
+        return Promise.reject(e);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### Refresh token rotation আর reuse detection কী?
+প্রতিবার refresh করার সময় **নতুন refresh token** দেওয়া হয় এবং পুরোনোটি বাতিল হয়। কেউ আগের (বাতিল) token আবার ব্যবহার করলে বোঝা যায় token চুরি হয়েছে (reuse detection), তখন ওই token এর পুরো "পরিবার" বাতিল করে user কে আবার login করানো হয়। এতে চুরি হওয়া refresh token এর ক্ষতি সীমিত থাকে।
+
+### How do you handle session expiration? (Session expiration কীভাবে সামলাবে?)
+Session মেয়াদ শেষ হওয়ার সময় যেন user এর কাজ নষ্ট না হয় এবং নিরাপত্তাও ঠিক থাকে, সেদিকে খেয়াল রাখি।
+
+**Server দিক:**
+
+- Session/token এ **মেয়াদ** রাখা (access token ছোট, refresh token লম্বা, বা session TTL)
+- **Sliding expiration** (কাজ করলে মেয়াদ বাড়ে) এবং **absolute expiration** (যাই হোক সর্বোচ্চ সময় শেষ হলে আবার login), সংবেদনশীল system এ idle timeout
+- মেয়াদ শেষ হলে `401` ফেরত দেওয়া
+
+**Client দিক:**
+
+- Axios/fetch interceptor এ `401` ধরা, আগে নীরবে refresh চেষ্টা করা (silent refresh), ব্যর্থ হলে logout ও login পেজে পাঠানো
+- Login এ পাঠানোর সময় **বর্তমান URL মনে রাখা** (`?returnTo=...`) যাতে login এর পর সেখানেই ফেরা যায়
+- ফর্ম/অসংরক্ষিত কাজ থাকলে সতর্কবার্তা বা modal ("Session expired, please login again")
+- Logout এ সব client state/cache পরিষ্কার (store reset, React Query cache clear)
+- **একাধিক tab এ sync**: `BroadcastChannel` বা `storage` event দিয়ে এক tab এ logout হলে অন্যগুলোও logout
+- মেয়াদ শেষ হওয়ার আগে (`exp` পড়ে) সক্রিয়ভাবে refresh করা যায় (proactive refresh)
+
+**Next.js এ:** middleware/server component এ মেয়াদ যাচাই করে মেয়াদ শেষ হলে `/login?returnTo=...` এ redirect, NextAuth এ `session.maxAge` ও `updateAge` ও callback দিয়ে।
+
+### Silent refresh আর proactive refresh এর পার্থক্য কী?
+- **Reactive (401 পাওয়ার পর)**: request ব্যর্থ হলে refresh করে retry। সহজ, কিন্তু একটি request বাড়তি ঘুরে আসে।
+- **Proactive (আগে থেকে)**: `exp` এর কিছু আগে timer দিয়ে refresh করা। ব্যবহারকারী ধীরতা টের পায় না, কিন্তু জটিলতা বেশি।
+
+### Logout কীভাবে সঠিকভাবে করবে?
+- Server এ session/refresh token বাতিল (database/Redis থেকে মোছা), cookie মুছে ফেলা (`Max-Age=0`)
+- Client এ access token, state ও cache পরিষ্কার
+- **সব device থেকে logout** দরকার হলে ওই user এর সব refresh token/session বাতিল
+- Stateless JWT এ শুধু client এ token মুছলে চুরি হওয়া token মেয়াদ পর্যন্ত বৈধ থাকে, তাই ছোট মেয়াদ ও denylist
+- অন্য tab এ জানানো
+
+## ৫. OAuth 2.0, OIDC ও Social Login
+
+### OAuth 2.0 কী? OIDC কী? পার্থক্য কী?
+- **OAuth 2.0**: **authorization** এর framework। তৃতীয় পক্ষের app কে আপনার পাসওয়ার্ড না দিয়ে আপনার data তে সীমিত access দেওয়া ("এই app কে আমার Google Calendar পড়তে দাও")।
+- **OpenID Connect (OIDC)**: OAuth 2.0 এর উপরে **authentication** স্তর। `id_token` (JWT) দিয়ে ব্যবহারকারী কে তা জানায়। "Login with Google" আসলে OIDC।
+
+সহজ কথা: OAuth হলো "কী করতে দেবে", OIDC হলো "তুমি কে"।
+
+### "Login with Google" কীভাবে কাজ করে? (Authorization Code flow with PKCE)
+```
+১. User "Login with Google" এ ক্লিক করে
+২. App user কে Google এ পাঠায় (client_id, redirect_uri, scope, state, code_challenge)
+৩. User Google এ login ও সম্মতি দেয়
+৪. Google একটি একবারের authorization code সহ app এ ফেরত পাঠায়
+৫. App (server) সেই code ও code_verifier দিয়ে Google থেকে token নেয়
+৬. App id_token থেকে user এর তথ্য জেনে নিজের session তৈরি করে
+```
+
+- **`state`** parameter CSRF আটকায়
+- **PKCE** code চুরি আটকায় (বিশেষ করে SPA/mobile)
+- Implicit flow এখন নিরুৎসাহিত
+
+### OAuth এর scope কী?
+App কতটুকু access চাচ্ছে তার সীমা (যেমন `email`, `profile`, `calendar.read`)। সবসময় **ন্যূনতম দরকারি scope** চান (least privilege)।
+
+### SSO (Single Sign-On) কী?
+একবার login করে একাধিক application/সেবায় ঢোকা। প্রযুক্তি: OIDC, SAML। প্রতিষ্ঠানে (Okta, Azure AD, Keycloak, Google Workspace) প্রচলিত। সুবিধা: একটি জায়গায় পরিচয় ব্যবস্থাপনা, সহজ onboarding/offboarding।
+
+## ৬. NextAuth (Auth.js)
+
+### What is NextAuth? How does it work? (NextAuth কী? কীভাবে কাজ করে?)
+NextAuth (এখন **Auth.js**) হলো Next.js এর জন্য authentication library। এটি **OAuth** ও **credentials** login সামলায়, **JWT অথবা database strategy** দিয়ে session পরিচালনা করে, এবং নিরাপদ **HTTP-only cookie** এর মাধ্যমে ব্যবহারকারীর authentication স্বয়ংক্রিয়ভাবে বজায় রাখে।
+
+**Interview answer:** "NextAuth is an authentication library for Next.js that handles OAuth and credentials login, manages sessions using either JWT or database strategy, and automatically maintains user authentication through secure HTTP-only cookies."
+
+**ভেতরের কাজ (সংক্ষেপে):**
+
+- `/api/auth/*` এ route handler (signin, callback, session, signout, csrf)
+- Provider (Google, GitHub, Credentials) সেট করা হয়
+- Login সফল হলে session তৈরি, cookie তে রাখা
+- Server এ session পড়া (`auth()`/`getServerSession`), client এ `useSession`
+- Built-in CSRF সুরক্ষা
+
+### NextAuth এ JWT strategy আর database strategy এর পার্থক্য কী?
+- **JWT strategy** (database adapter না থাকলে default): session তথ্য **এনক্রিপ্ট করা JWT** আকারে cookie তে। Database লাগে না, দ্রুত, edge এ ভালো। বাতিল করা কঠিন।
+- **Database strategy** (adapter লাগে, যেমন Prisma): session database এ, cookie তে শুধু session id। সহজে বাতিল ও সব session দেখা যায়, কিন্তু প্রতি request এ database।
+
+Credentials provider সাধারণত JWT strategy এর সাথে কাজ করে।
+
+### NextAuth এর callbacks (`jwt`, `session`, `signIn`) কী? Role কীভাবে session এ আনবে?
+- `signIn`: login অনুমোদন করবে কিনা
+- `jwt`: token তৈরি/আপডেটের সময় চলে, এখানে `role` যোগ করা যায়
+- `session`: client/server এ যে session পাবেন তা গঠন করে
+
+```ts
+callbacks: {
+  jwt({ token, user }) {
+    if (user) token.role = user.role;          // প্রথম login এ
+    return token;
+  },
+  session({ session, token }) {
+    session.user.role = token.role as string;  // session এ দেখানো
+    return session;
+  },
+},
+```
+
+### NextAuth কনফিগারেশন (Auth.js v5) এর উদাহরণ দাও
+```ts
+// auth.ts
+import NextAuth from "next-auth";
+import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 },
+  providers: [
+    Google,
+    Credentials({
+      authorize: async (credentials) => {
+        const user = await db.user.findUnique({ where: { email: String(credentials.email) } });
+        if (!user) return null;
+        const ok = await bcrypt.compare(String(credentials.password), user.passwordHash);
+        return ok ? { id: user.id, email: user.email, role: user.role } : null;
+      },
+    }),
+  ],
+  callbacks: {
+    jwt({ token, user }) { if (user) token.role = (user as any).role; return token; },
+    session({ session, token }) { (session.user as any).role = token.role; return session; },
+  },
+});
+
+// app/api/auth/[...nextauth]/route.ts
+export const { GET, POST } = handlers;
+
+// Server Component এ
+const session = await auth();
+if (!session) redirect("/login");
+```
+
+(NextAuth v4 এ `getServerSession(authOptions)`, v5/Auth.js এ `auth()`। Version অনুযায়ী API আলাদা, তাই docs দেখে নিন।)
+
+### NextAuth এর Credentials provider নিয়ে কোন সতর্কতা আছে?
+- নিজে password hash যাচাই করতে হয় (`bcrypt`/`argon2`)
+- সাধারণত শুধু JWT strategy তে কাজ করে
+- Brute force ঠেকাতে rate limiting নিজেকেই বানাতে হয়
+- Social login/OAuth ও magic link সাধারণত বেশি নিরাপদ ও সহজ
+
+## ৭. Authorization ও RBAC
+
+### What is RBAC? (RBAC কী?)
+RBAC (Role-Based Access Control) এ user কে **role** (admin, manager, user) দেওয়া হয়, আর প্রতিটি role এর কিছু **permission** থাকে। User এর role দেখে অনুমতি ঠিক হয়। সহজ ও ব্যাপক প্রচলিত।
+
+### How would you implement RBAC? (RBAC কীভাবে বাস্তবায়ন করবে?)
+Frontend এ RBAC এর জন্য আমি route সুরক্ষা **middleware** দিয়ে করি এবং UI permission **কেন্দ্রীভূত (centralized) permission configuration** দিয়ে সামলাই।
+
+Next.js এ middleware দিয়ে অননুমোদিত user দের `/admin` এর মতো সুরক্ষিত route এ ঢুকতে আটকাই। তারপর menu, button ও page action এর জন্য array বা object দিয়ে **role-permission mapping** রাখি। User এর role অনুযায়ী UI element গতিশীলভাবে দেখাই বা লুকাই।
+
+এতে permission logic এক জায়গায় থাকে ও maintain করা সহজ। তবে **backend এও সবসময় permission যাচাই করি**, কারণ frontend এর check শুধু user experience এর জন্য।
+
+সংক্ষেপে:
+
+- Route এর জন্য middleware
+- Navigation এর জন্য array mapping
+- সাধারণ function ও dynamic UI
+
+### Role-permission mapping ও `can()` helper কীভাবে লিখবে?
+```ts
+// permissions.ts (এক জায়গায়)
+export const PERMISSIONS = {
+  admin:   ["user:read", "user:write", "user:delete", "report:read"],
+  manager: ["user:read", "report:read"],
+  user:    [],
+} as const;
+
+export type Role = keyof typeof PERMISSIONS;
+export const can = (role: Role | undefined, perm: string) =>
+  !!role && (PERMISSIONS[role] as readonly string[]).includes(perm);
+
+// navigation config
+export const NAV = [
+  { label: "Dashboard", href: "/dashboard", roles: ["admin", "manager", "user"] },
+  { label: "Users",     href: "/admin/users", roles: ["admin"] },
+  { label: "Reports",   href: "/reports", roles: ["admin", "manager"] },
+];
+const visible = NAV.filter((n) => n.roles.includes(user.role));
+
+// component
+{can(user.role, "user:delete") && <button>Delete</button>}
+```
+
+### RBAC আর ABAC আর ACL এর পার্থক্য কী?
+- **RBAC**: role ভিত্তিক (admin/user)। সহজ।
+- **ABAC** (Attribute-Based): user, resource ও পরিবেশের attribute ভিত্তিক নিয়ম ("নিজের department এর document, অফিস সময়ে")। বেশি নমনীয়, জটিল।
+- **ACL** (Access Control List): প্রতিটি resource এর জন্য আলাদা তালিকা কে কী করতে পারবে।
+
+বেশিরভাগ app এ RBAC যথেষ্ট, ownership (নিজের data) এর জন্য সাথে ownership check যোগ করা হয়। জটিল নিয়মে CASL, OPA বা policy engine।
+
+### Frontend এ permission check ও backend এ কেন দুটোই দরকার?
+Frontend এর check **শুধু user experience** (লুকানো বাটন)। যেকোনো user browser এ কোড বদলাতে বা সরাসরি API call করতে পারে। তাই **আসল authorization সবসময় backend এ** (প্রতিটি request এ)। Frontend ও backend এর permission list sync রাখুন।
+
+### IDOR (BOLA) কী? কীভাবে ঠেকাবে?
+Insecure Direct Object Reference: user অন্যের id বদলে (`/orders/123` → `/orders/124`) অন্যের data দেখতে পায় কারণ server শুধু login দেখেছে, মালিকানা (ownership) দেখেনি।
+
+প্রতিরোধ: প্রতিটি resource access এ "এই user কি এর মালিক বা অনুমতিপ্রাপ্ত?" যাচাই (`WHERE id = ? AND user_id = ?`), id আন্দাজযোগ্য না করা (UUID), তবে শুধু UUID যথেষ্ট নয়।
+
+### Backend এ role ভিত্তিক middleware (Express) কীভাবে লিখবে?
+```js
+const requireAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1] ?? req.cookies.access_token;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    req.user = jwt.verify(token, process.env.ACCESS_SECRET, { algorithms: ["HS256"] });
+    next();
+  } catch {
+    res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
+
+const requireRole = (...roles) => (req, res, next) =>
+  roles.includes(req.user.role) ? next() : res.status(403).json({ message: "Forbidden" });
+
+app.delete("/api/users/:id", requireAuth, requireRole("admin"), deleteUser);
+```
+
+## ৮. Route ও Page সুরক্ষা (Next.js ও React)
+
+### How do you protect a route? (Route কীভাবে সুরক্ষিত করবে?)
+স্তরে স্তরে সুরক্ষা (layered protection):
+
+- **Middleware**: অননুমোদিত request কে আগেই আটকে `/login` এ পাঠায়
+- **Server Component/Layout**: session না থাকলে `redirect()`
+- **Server Action/Route Handler এর ভেতরে**: আসল authorization যাচাই (এটাই চূড়ান্ত)
+- Backend API এ প্রতিটি request এ token ও permission যাচাই
+
+শুধু middleware এর উপর নির্ভর করবেন না।
+
+### How do you protect SSR pages? (SSR page কীভাবে সুরক্ষিত করবে?)
+SSR page সুরক্ষিত করতে আমি page render করার **আগেই server এ authentication check** করি।
+
+- **Pages Router এ**: `getServerSideProps` এ cookie থেকে session/token যাচাই করে অননুমোদিত user কে login এ redirect করি।
+- **App Router এ**: Server Component এ `getServerSession`/`auth()` অথবা middleware দিয়ে authentication enforce করি।
+
+এতে সুরক্ষিত content কখনো unauthenticated user এর কাছে পাঠানোই হয় না, নিরাপত্তা ও user experience দুটোই ভালো হয়।
+
+```tsx
+// Pages Router
+export async function getServerSideProps({ req }) {
+  const session = await getSession({ req });          // বা token যাচাই
+  if (!session) return { redirect: { destination: "/login", permanent: false } };
+  return { props: { user: session.user } };
+}
+
+// App Router
+export default async function AdminPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
+  if (session.user.role !== "admin") redirect("/403");
+  return <AdminDashboard />;
+}
+```
+
+### Next.js middleware দিয়ে route protect (JWT যাচাই সহ) কীভাবে করবে?
+```ts
+// middleware.ts
+import { NextResponse, type NextRequest } from "next/server";
+import { jwtVerify } from "jose";                     // Edge এ চলে (jsonwebtoken চলে না)
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const token = req.cookies.get("session")?.value;
+
+  if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
+    if (!token) return NextResponse.redirect(new URL(`/login?returnTo=${pathname}`, req.url));
+    try {
+      const { payload } = await jwtVerify(token, secret);
+      if (pathname.startsWith("/admin") && payload.role !== "admin")
+        return NextResponse.redirect(new URL("/403", req.url));
+    } catch {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+  return NextResponse.next();
+}
+export const config = { matcher: ["/admin/:path*", "/dashboard/:path*"] };
+```
+
+### Middleware কি একমাত্র সুরক্ষা হতে পারে? (Next.js এ বিশেষ সতর্কতা)
+না। Middleware দ্রুত প্রথম ফিল্টার, কিন্তু একমাত্র সুরক্ষা নয়:
+
+- ২০২৫ সালে Next.js middleware এড়িয়ে যাওয়ার একটি নিরাপত্তা দুর্বলতা (CVE-2025-29927) ধরা পড়েছিল (ঠিক করা version এ upgrade করা জরুরি)
+- Middleware Edge runtime এ চলে, সীমিত API
+- Matcher ভুল হলে কিছু route বাদ পড়ে যায়
+
+তাই Next.js এর নির্দেশনা অনুযায়ী data এর কাছাকাছি (**Data Access Layer**) যাচাই করুন: Server Component, Server Action, Route Handler ও backend এ।
+
+### Data Access Layer (DAL) pattern কী?
+সব session ও permission যাচাই এক জায়গার (একটি `dal.ts`) function এ রাখা, আর data আনার প্রতিটি জায়গা সেই function ডাকে। এতে কেউ ভুলে check বাদ দিতে পারে না।
+
+```ts
+// lib/dal.ts
+import "server-only";
+import { cache } from "react";
+
+export const verifySession = cache(async () => {
+  const session = await auth();
+  if (!session) redirect("/login");
+  return session;
+});
+
+export async function getAllUsers() {
+  const session = await verifySession();
+  if (session.user.role !== "admin") throw new Error("Forbidden");
+  return db.user.findMany();
+}
+```
+
+### Server Action কীভাবে সুরক্ষিত করবে?
+Server Action আসলে একটি **public POST endpoint**। তাই প্রতিটির ভেতরে নিজেই authentication ও authorization যাচাই করুন এবং input validate করুন (`zod`)। "UI তে বাটন লুকানো আছে" নিরাপত্তা নয়।
+
+```ts
+"use server";
+export async function deleteUser(id: string) {
+  const session = await verifySession();
+  if (session.user.role !== "admin") throw new Error("Forbidden");
+  await db.user.delete({ where: { id } });
+}
+```
+
+### React SPA (Vite) এ protected route কীভাবে বানাবে?
+```jsx
+function ProtectedRoute({ roles, children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <Spinner />;                       // reload এ flicker এড়াতে
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to="/403" replace />;
+  return children;
+}
+
+<Route path="/admin" element={<ProtectedRoute roles={["admin"]}><Admin /></ProtectedRoute>} />
+```
+এটা শুধু UX। আসল সুরক্ষা backend এ। Reload এ `loading` অবস্থা দরকার, নইলে মুহূর্তের জন্য login পেজ ঝলকায়।
+
+### Login এর পর আগের পেজে ফেরত (returnTo/callbackUrl) কীভাবে করবে?
+Login এ পাঠানোর সময় বর্তমান URL query তে (`/login?returnTo=/admin/users`) বা state এ রাখুন। Login সফল হলে সেখানে পাঠান। **Open redirect** এড়াতে `returnTo` শুধু নিজের site এর relative path কিনা যাচাই করুন (বাইরের URL এ পাঠাবেন না)।
+
+## ৯. Admin Panel ও সামগ্রিক নিরাপত্তা
+
+### How would you secure an Admin Panel? (Admin Panel কীভাবে সিকিউর করবে?)
+একটি Admin Panel সিকিউর করতে আমি authentication এবং authorization দুটোই ব্যবহার করব।
+
+প্রথমে নিশ্চিত করব যে শুধু authenticated (login করা) user রাই application এ access করতে পারবে। এরপর **RBAC** implement করব, যাতে শুধু admin role এর user রাই admin route ও feature access করতে পারে।
+
+Frontend এ middleware দিয়ে route protect করব এবং অননুমোদিত menu বা action লুকিয়ে রাখব। Backend এ প্রতিটি API request যাচাই করব যে user এর সঠিক permission আছে কিনা।
+
+এছাড়া:
+
+- Authentication এর জন্য secure **HTTP-only cookie**
+- **HTTPS**
+- সঠিক **input validation**
+- প্রয়োজনে **CSRF protection**
+- সংবেদনশীল কাজের জন্য **audit logging**
+
+### Admin Panel এর জন্য অতিরিক্ত নিরাপত্তা checklist কী?
+- **MFA** (TOTP/passkey) বাধ্যতামূলক
+- Rate limiting ও brute force সুরক্ষা, সন্দেহজনক login এ lockout/CAPTCHA
+- Admin URL আড়াল নয়, আসল সুরক্ষা auth (security through obscurity নয়)
+- IP allowlist/VPN (সম্ভব হলে)
+- ছোট session মেয়াদ ও idle timeout
+- Least privilege: সবাই super admin নয়, আলাদা role
+- সব admin কাজের audit log (কে, কী, কখন)
+- Sensitive action (মুছে ফেলা, role বদল) এ আবার password/MFA চাওয়া (re-authentication)
+- Security header (CSP, `X-Frame-Options`, HSTS)
+- Dependency ও framework নিয়মিত আপডেট
+
+### Rate limiting ও brute force সুরক্ষা কীভাবে করবে?
+- Login endpoint এ সীমা (যেমন প্রতি IP/account এ ৫ বার/১৫ মিনিট), `express-rate-limit`, Redis দিয়ে
+- ধাপে ধাপে বাড়তে থাকা বিলম্ব (exponential backoff) বা সাময়িক lockout
+- ব্যর্থ চেষ্টার পর CAPTCHA
+- সব ক্ষেত্রে একই বার্তা ("email বা password ভুল"), account আছে কিনা না জানানো
+- সন্দেহজনক চেষ্টা log ও alert
+
+## ১০. Password, MFA ও Credential
+
+### Password database এ কীভাবে সংরক্ষণ করবে?
+কখনো plain text বা reversible encryption নয়। **ধীর, salted hash** ব্যবহার করুন: **argon2id** (প্রস্তাবিত) বা **bcrypt** (cost 10-12)। প্রতিটি password এর জন্য আলাদা **salt** (এসব library নিজে দেয়)। MD5/SHA1/সাধারণ SHA256 নয়, কারণ সেগুলো খুব দ্রুত তাই brute force সহজ।
+
+```js
+import bcrypt from "bcrypt";
+const hash = await bcrypt.hash(password, 12);
+const ok = await bcrypt.compare(password, hash);
+```
+
+### Hashing, encryption আর encoding এর পার্থক্য কী?
+- **Hashing**: একমুখী, ফেরানো যায় না। Password এর জন্য।
+- **Encryption**: key দিয়ে ফেরানো যায়। গোপন data সংরক্ষণ/পাঠানোর জন্য।
+- **Encoding** (Base64): শুধু রূপ বদল, কোনো নিরাপত্তা নেই। JWT payload শুধু encoded।
+
+### Salt আর pepper কী?
+- **Salt**: প্রতিটি password এ আলাদা random মান, যাতে একই password এর hash আলাদা হয় ও rainbow table কাজ না করে। Hash এর সাথে database এ থাকে।
+- **Pepper**: সব password এর জন্য একটি গোপন মান, database এর বাইরে (secret manager) রাখা হয়। Database চুরি হলেও বাড়তি সুরক্ষা।
+
+### Forgot password flow কীভাবে নিরাপদে বানাবে?
+- Random, অনুমান-অযোগ্য, **একবারের** token তৈরি, **ছোট মেয়াদ** (১৫-৬০ মিনিট)
+- Database এ token এর **hash** রাখা (কাঁচা token নয়)
+- Email এ লিংক পাঠানো, ব্যবহারের পর বাতিল
+- "এই email এ account আছে কিনা" জানাবেন না (একই বার্তা সবসময়)
+- Password বদলের পর সব session/refresh token বাতিল
+- Rate limit
+
+### MFA (multi-factor authentication) কী? ধরনগুলো কী?
+দুই বা ততোধিক ভিন্ন ধরনের প্রমাণ।
+
+- **TOTP** (Google Authenticator, Authy): সময় ভিত্তিক ৬ অংকের কোড। ভালো।
+- **SMS/Email OTP**: সহজ, কিন্তু SIM swap এর ঝুঁকিতে দুর্বল
+- **Push notification**
+- **Hardware key / Passkey (WebAuthn)**: সবচেয়ে নিরাপদ, phishing প্রতিরোধী
+
+### Passkey/WebAuthn কী?
+Password এর বদলে public-key cryptography: device এ private key থাকে (fingerprint/face/PIN দিয়ে খোলে), server এ শুধু public key। Phishing প্রতিরোধী কারণ credential নির্দিষ্ট domain এর সাথে বাঁধা। ভবিষ্যতের password-less পদ্ধতি।
+
+### OTP verification কীভাবে নিরাপদে বানাবে?
+- Random, ছোট মেয়াদ (২-৫ মিনিট), একবারের ব্যবহার
+- Database/Redis এ hash বা TTL সহ রাখা
+- ভুল চেষ্টার সীমা (৩-৫ বার), পুনরায় পাঠানোতে rate limit
+- দুই OTP এর মধ্যে সময়ের ফাঁক
+- সংবেদনশীল ক্ষেত্রে SMS এর বদলে authenticator app
+
+## ১১. Output ও Bug খুঁজে বের করা
+
+### Q1: Login এর পরও cookie request এ যাচ্ছে না। কেন?
+```js
+axios.get("https://api.example.com/me")   // frontend: app.example.com
+```
+উত্তর: cross-origin এ cookie পাঠাতে `withCredentials: true` লাগে, server এ `Access-Control-Allow-Credentials: true` ও নির্দিষ্ট origin (`*` নয়), আর cookie তে ঠিক `SameSite`/`Secure`। এর যেকোনোটি বাদ পড়লে cookie যায় না।
+
+### Q2: কেন এই ধরনের auth বিপজ্জনক?
+```js
+localStorage.setItem("token", jwt);
+// পরে: axios.defaults.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+```
+উত্তর: কোনো XSS (বা সংক্রামিত third-party script) `localStorage.getItem("token")` দিয়ে সহজে token চুরি করতে পারে। বিকল্প: `HttpOnly, Secure, SameSite` cookie।
+
+### Q3: Token refresh এ অনন্ত loop হচ্ছে। কেন?
+```js
+if (error.response.status === 401) {
+  await refresh();
+  return api(error.config);   // retry
+}
+```
+উত্তর: refresh নিজেই `401` দিলে (বা retry আবার `401` পেলে) আবার refresh, আবার retry... ক্রমাগত। সমাধান: `original._retry` flag, refresh endpoint কে interceptor থেকে বাদ দেওয়া, refresh ব্যর্থ হলে logout।
+
+### Q4: একসাথে ৫টি request এ ৫ বার refresh call হচ্ছে। কেন, কীভাবে ঠিক করবে?
+উত্তর: প্রতিটি `401` নিজে নিজে refresh চালাচ্ছে। একটি শেয়ার করা `refreshPromise` রাখুন যাতে সবাই একই চলমান refresh এর অপেক্ষা করে। (ব্যাখ্যা ও code উপরে।) Refresh token rotation থাকলে এই race এ বাকি requests বাতিল হয়ে logout ও হয়ে যেতে পারে।
+
+### Q5: Admin পেজ browser এ লুকানো, কিন্তু user URL এ সরাসরি গিয়ে data দেখতে পাচ্ছে। কেন?
+উত্তর: শুধু UI তে লুকানো হয়েছে, route ও API তে server-side যাচাই নেই। Middleware/Server Component এ role check ও **backend API এ** প্রতিটি request এ permission যাচাই করুন।
+
+### Q6: Reload দিলে মুহূর্তের জন্য login পেজ দেখা যায়, তারপর dashboard। কেন?
+উত্তর: Auth state (user) লোড হওয়ার আগেই `user = null` ধরে redirect হচ্ছে। `loading` state রাখুন এবং loading শেষ না হওয়া পর্যন্ত spinner দেখান। বা server এ session পড়ে প্রথম render এ-ই সঠিক UI পাঠান (Server Component)।
+
+### Q7: JWT তে role বদলালাম, কিন্তু user এখনো পুরোনো permission পাচ্ছে। কেন?
+উত্তর: JWT stateless, role token এ বসানো আছে, মেয়াদ শেষ না হওয়া পর্যন্ত পুরোনো। সমাধান: ছোট access token মেয়াদ, গুরুত্বপূর্ণ কাজে server এ role আবার পড়া, token version, বা role বদলালে refresh token বাতিল।
+
+## ১২. Live Coding
+
+### Express এ JWT login (cookie সহ) ও refresh endpoint
+```js
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+
+const ACCESS = process.env.ACCESS_SECRET;
+const REFRESH = process.env.REFRESH_SECRET;
+
+const signAccess = (u) => jwt.sign({ sub: u.id, role: u.role }, ACCESS, { expiresIn: "15m" });
+const signRefresh = (u) => jwt.sign({ sub: u.id }, REFRESH, { expiresIn: "7d" });
+
+const cookieOpts = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  path: "/api/auth",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  const ok = user && (await bcrypt.compare(password, user.passwordHash));
+  if (!ok) return res.status(401).json({ message: "Invalid credentials" });   // একই বার্তা
+
+  const refreshToken = signRefresh(user);
+  await RefreshToken.create({ userId: user.id, tokenHash: hash(refreshToken) });  // server এ সংরক্ষণ
+  res.cookie("refresh_token", refreshToken, cookieOpts);
+  res.json({ accessToken: signAccess(user), user: { id: user.id, role: user.role } });
+});
+
+app.post("/api/auth/refresh", async (req, res) => {
+  const token = req.cookies.refresh_token;
+  if (!token) return res.status(401).end();
+  try {
+    const payload = jwt.verify(token, REFRESH);
+    const stored = await RefreshToken.findOne({ userId: payload.sub, tokenHash: hash(token) });
+    if (!stored) return res.status(401).end();                 // বাতিল বা reuse
+    await stored.deleteOne();                                   // rotation: পুরোনোটি বাতিল
+    const user = await User.findById(payload.sub);
+    const newRefresh = signRefresh(user);
+    await RefreshToken.create({ userId: user.id, tokenHash: hash(newRefresh) });
+    res.cookie("refresh_token", newRefresh, cookieOpts);
+    res.json({ accessToken: signAccess(user) });
+  } catch {
+    res.status(401).end();
+  }
+});
+
+app.post("/api/auth/logout", async (req, res) => {
+  const token = req.cookies.refresh_token;
+  if (token) await RefreshToken.deleteOne({ tokenHash: hash(token) });
+  res.clearCookie("refresh_token", { path: "/api/auth" });
+  res.status(204).end();
+});
+```
+
+### React এ Auth Context (login, logout, user লোড) বানাও
+```jsx
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/auth/me")                       // cookie/token দিয়ে বর্তমান user
+      .then((r) => setUser(r.data))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const login = async (email, password) => {
+    const { data } = await api.post("/auth/login", { email, password });
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+  };
+  const logout = async () => {
+    await api.post("/auth/logout");
+    setAccessToken(null);
+    setUser(null);
+    queryClient.clear();                      // cache পরিষ্কার
+  };
+
+  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
+};
+```
+
+### একাধিক tab এ logout sync কীভাবে করবে?
+```js
+const channel = new BroadcastChannel("auth");
+
+function logout() {
+  clearAuthState();
+  channel.postMessage({ type: "logout" });      // অন্য tab কে জানাও
+}
+channel.onmessage = (e) => {
+  if (e.data.type === "logout") {
+    clearAuthState();
+    window.location.href = "/login";
+  }
+};
+```
+
+### Next.js Server Action এ login ও cookie সেট করা
+```ts
+"use server";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SignJWT } from "jose";
+
+export async function login(prev: unknown, formData: FormData) {
+  const email = String(formData.get("email"));
+  const password = String(formData.get("password"));
+  const user = await verifyCredentials(email, password);
+  if (!user) return { error: "Invalid credentials" };
+
+  const token = await new SignJWT({ sub: user.id, role: user.role })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+  (await cookies()).set("session", token, {
+    httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 60 * 60,
+  });
+  redirect("/dashboard");
+}
+```
+
+### Authentication সুরক্ষা checklist (নিজেকে এই প্রশ্নগুলো করো)
+- Password hash (argon2/bcrypt), salt আছে?
+- Token কোথায় (HttpOnly cookie)? মেয়াদ ছোট?
+- Refresh token rotation ও বাতিলের ব্যবস্থা আছে?
+- প্রতিটি API তে auth ও permission যাচাই (backend)?
+- Ownership (IDOR) check আছে?
+- Rate limit ও MFA (admin) আছে?
+- HTTPS, CORS সঠিক, CSRF সুরক্ষা?
+- Audit log আছে?
+- Secret code এ নেই (env/secret manager)?
+- ত্রুটি বার্তায় অতিরিক্ত তথ্য ফাঁস হচ্ছে না?
+</script>
+
 <script type="text/plain" id="content-db">
 ## ১. Database Basics (সাধারণ ধারণা)
 
@@ -7435,6 +9199,849 @@ COMMIT;
 সাথে: `NUMERIC` ব্যবহার, ledger (double-entry) এ প্রতিটি লেনদেনের হিসাব, `idempotency_key` UNIQUE।
 </script>
 
+<script type="text/plain" id="content-security">
+## ১. Security Basics
+
+### Web security কী? কেন গুরুত্বপূর্ণ?
+Web application কে অননুমোদিত access, data চুরি, নষ্ট করা বা সেবা বন্ধ করে দেওয়া থেকে রক্ষা করার অনুশীলন। একটি ভুলে user এর ব্যক্তিগত data ফাঁস, আর্থিক ক্ষতি, আইনি সমস্যা ও বিশ্বাস হারানো হতে পারে।
+
+নিরাপত্তা শুধু backend এর কাজ নয়। Frontend, backend, database, infrastructure ও process সব স্তরে লাগে।
+
+### CIA triad কী?
+নিরাপত্তার তিনটি মূল লক্ষ্য:
+
+- **Confidentiality** (গোপনীয়তা): শুধু অনুমোদিত ব্যক্তি data দেখতে পারবে (encryption, access control)
+- **Integrity** (অখণ্ডতা): data অননুমোদিতভাবে বদলানো যাবে না (hash, signature, validation)
+- **Availability** (প্রাপ্যতা): সেবা প্রয়োজনের সময় পাওয়া যাবে (DDoS সুরক্ষা, backup, redundancy)
+
+### Vulnerability, threat, risk আর exploit এর পার্থক্য কী?
+- **Vulnerability**: system এর দুর্বলতা (যেমন SQL injection এর সুযোগ)
+- **Threat**: সেই দুর্বলতা কাজে লাগাতে পারে এমন কিছু/কেউ (আক্রমণকারী)
+- **Exploit**: দুর্বলতা কাজে লাগানোর পদ্ধতি/code
+- **Risk**: ক্ষতির সম্ভাবনা × প্রভাব
+
+### OWASP কী? OWASP Top 10 কী?
+OWASP (Open Worldwide Application Security Project) একটি অলাভজনক সংস্থা। **OWASP Top 10** হলো web application এর সবচেয়ে গুরুতর ও সাধারণ নিরাপত্তা ঝুঁকির তালিকা, যা সবার জানা দরকার।
+
+২০২১ সংস্করণ (সবচেয়ে সুপরিচিত):
+
+- **A01 Broken Access Control**: অনুমতির ভুল ব্যবস্থা (IDOR, অন্যের data দেখা)
+- **A02 Cryptographic Failures**: দুর্বল বা অনুপস্থিত এনক্রিপশন, সংবেদনশীল data ফাঁস
+- **A03 Injection**: SQL/NoSQL/command injection, XSS
+- **A04 Insecure Design**: ডিজাইন স্তরের ত্রুটি
+- **A05 Security Misconfiguration**: ভুল/ডিফল্ট কনফিগারেশন
+- **A06 Vulnerable and Outdated Components**: পুরোনো, দুর্বল library
+- **A07 Identification and Authentication Failures**: দুর্বল login ও session
+- **A08 Software and Data Integrity Failures**: যাচাই ছাড়া update/dependency/CI আস্থা
+- **A09 Security Logging and Monitoring Failures**: log ও নজরদারি অভাব
+- **A10 Server-Side Request Forgery (SSRF)**
+
+OWASP এর নতুন (২০২৫) সংস্করণ প্রকাশিত হয়েছে এবং তালিকায় কিছু পরিবর্তন এসেছে, তাই interview এর আগে owasp.org এ দেখে নিন।
+
+### Defense in depth কী?
+একাধিক স্তরের সুরক্ষা, যাতে একটি ভেঙে গেলেও বাকিগুলো রক্ষা করে। উদাহরণ: client validation + server validation + parameterized query + database এ least privilege user + WAF + monitoring। একটি মাত্র ঢালের উপর ভরসা করবেন না।
+
+### Least privilege নীতি কী?
+প্রতিটি user, service ও process কে কাজের জন্য **ন্যূনতম দরকারি অনুমতি** দেওয়া। যেমন app এর database user কে `DROP TABLE` এর অধিকার না দেওয়া, প্রতিটি microservice কে শুধু নিজের দরকারি resource এ access। ক্ষতি সীমিত রাখে।
+
+### "Never trust the client" মানে কী?
+Browser এ যা কিছু চলে, user তা বদলাতে বা বাদ দিতে পারে (DevTools, curl, Postman)। তাই client এর validation, লুকানো button, hidden field, আসা দাম বা role কখনো বিশ্বাস করা যাবে না। **সব গুরুত্বপূর্ণ যাচাই server এ।** Client validation শুধু user experience এর জন্য।
+
+### Security through obscurity কেন যথেষ্ট নয়?
+কিছু লুকিয়ে রাখা (যেমন `/secret-admin` URL) নিরাপত্তা নয়, কারণ আক্রমণকারী তা খুঁজে পেতে পারে। আসল সুরক্ষা authentication ও authorization। লুকানো বাড়তি স্তর হতে পারে, কিন্তু একমাত্র ভরসা নয়।
+
+### Threat modeling ও STRIDE কী?
+Feature বানানোর আগে "কী ভুল হতে পারে?" নিয়ে পরিকল্পিত ভাবনা। **STRIDE**:
+
+- **S**poofing (ভুয়া পরিচয়)
+- **T**ampering (data বদলানো)
+- **R**epudiation (অস্বীকার করা, log লাগে)
+- **I**nformation disclosure (data ফাঁস)
+- **D**enial of service
+- **E**levation of privilege (অনুমতি বাড়িয়ে নেওয়া)
+
+### Zero trust কী?
+"কাউকে স্বাভাবিকভাবে বিশ্বাস করো না, প্রতিটি request যাচাই করো", এমনকি ভেতরের network থেকেও। প্রতিবার পরিচয় ও অনুমতি যাচাই, ন্যূনতম access, সব কিছুর নজরদারি।
+
+### Shift-left security ও DevSecOps কী?
+নিরাপত্তাকে একদম শেষে না ভেবে development এর **শুরু থেকেই** (design, code, CI/CD) যুক্ত করা। CI pipeline এ স্বয়ংক্রিয় নিরাপত্তা পরীক্ষা (dependency scan, SAST, secret scan) থাকলে একে DevSecOps বলে।
+
+## ২. Frontend Security
+
+### XSS (Cross-Site Scripting) কী? কত ধরনের?
+আক্রমণকারী পেজে ক্ষতিকর JavaScript ঢুকিয়ে দেয়, যা ভুক্তভোগীর browser এ চলে। এটি দিয়ে token/cookie চুরি, ভুয়া form দেখানো, user এর হয়ে কাজ করা সম্ভব।
+
+- **Stored XSS**: ক্ষতিকর script database এ সংরক্ষিত হয় (comment, profile)। সবচেয়ে বিপজ্জনক।
+- **Reflected XSS**: script URL/request এ থাকে, response এ সরাসরি ফিরে আসে (search query)।
+- **DOM-based XSS**: server এর বদলে client এর JS ই অনিরাপদভাবে DOM এ বসায় (`innerHTML`, `location.hash`)।
+
+### XSS কীভাবে প্রতিরোধ করবে?
+- User input **output এ escape** করা (HTML context অনুযায়ী)
+- `innerHTML`, `document.write`, `eval` এড়ানো, `textContent` ব্যবহার
+- HTML দেখাতে হলে **sanitize** (`DOMPurify`)
+- **Content Security Policy (CSP)** header
+- Token `HttpOnly` cookie তে (XSS হলেও চুরি যায় না)
+- `dangerouslySetInnerHTML` এড়ানো বা sanitize করে ব্যবহার
+- Framework এর auto-escaping এর উপর ভরসা, কিন্তু তার বাইরের পথ (নিচে) সাবধানে
+- Library ও dependency আপডেট রাখা
+
+### React কি XSS থেকে নিজে নিজে রক্ষা করে? কোথায় ঝুঁকি থেকে যায়?
+React `{}` এর ভেতরের মান **স্বয়ংক্রিয়ভাবে escape** করে, তাই সাধারণ ক্ষেত্রে নিরাপদ। ঝুঁকি থাকে:
+
+- `dangerouslySetInnerHTML` (raw HTML বসায়)
+- `href={userInput}` এ `javascript:alert(1)` ধরনের URL
+- সরাসরি DOM (`ref.current.innerHTML`)
+- `eval`/`new Function`
+- Server থেকে আসা JSON কে `<script>` এ বসানো (SSR)
+- তৃতীয় পক্ষের library বা সংক্রামিত script
+
+```jsx
+// বিপজ্জনক
+<div dangerouslySetInnerHTML={{ __html: userComment }} />
+<a href={userUrl}>link</a>            // userUrl = "javascript:..." হতে পারে
+
+// নিরাপদ
+import DOMPurify from "dompurify";
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userComment) }} />
+const safe = /^https?:\/\//.test(userUrl) ? userUrl : "#";
+```
+
+### Content Security Policy (CSP) কী?
+HTTP header যা browser কে বলে কোন উৎস (source) থেকে script, style, image লোড করা যাবে। ক্ষতিকর inline script চালানো বা অচেনা domain এ data পাঠানো আটকায়। XSS এর **দ্বিতীয় প্রতিরক্ষা স্তর**।
+
+```
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' 'nonce-abc123';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+  object-src 'none';
+  base-uri 'self';
+  frame-ancestors 'none';
+```
+
+- `'unsafe-inline'`/`'unsafe-eval'` এড়ান, বদলে **nonce** বা hash
+- প্রথমে `Content-Security-Policy-Report-Only` এ চালিয়ে দেখুন কী ভাঙছে
+- Next.js এ middleware এ প্রতি request এ nonce তৈরি করা যায়
+
+### CSRF (Cross-Site Request Forgery) কী? কীভাবে ঠেকাবে?
+User login থাকা অবস্থায় অন্য ক্ষতিকর site থেকে তার নামে request পাঠানো, কারণ browser cookie নিজে থেকে জুড়ে দেয়।
+
+প্রতিরোধ:
+
+- **`SameSite=Lax/Strict`** cookie (প্রধান ঢাল)
+- **CSRF token** (synchronizer বা double-submit cookie)
+- `Origin`/`Referer` header যাচাই
+- State বদলানো কাজে `GET` ব্যবহার না করা
+- Custom header (যেমন `X-Requested-With`) চাওয়া, যা cross-site form পাঠাতে পারে না
+
+`Authorization: Bearer` header এ token থাকলে CSRF সাধারণত সমস্যা নয় (browser নিজে header জোড়ে না), কিন্তু তখন XSS এ token চুরির ঝুঁকি থাকে।
+
+### Clickjacking কী? কীভাবে ঠেকাবে?
+ক্ষতিকর site আপনার পেজকে স্বচ্ছ `iframe` এ লুকিয়ে রেখে user কে ভুল জায়গায় click করায় (যেমন "Delete account" এ)। প্রতিরোধ: `Content-Security-Policy: frame-ancestors 'none'` (বা `'self'`) এবং পুরোনো browser এর জন্য `X-Frame-Options: DENY`।
+
+### Frontend এ API key বা secret রাখা যায় কি?
+**না।** Browser এ যা পাঠানো হয় (JS bundle, `NEXT_PUBLIC_*`, `VITE_*` env) সবই public, যে কেউ দেখতে পারে। গোপন key (database, payment secret, third-party secret) কখনো frontend এ নয়।
+
+- গোপন key এর কাজ **backend (API route/Server Action)** দিয়ে proxy করুন
+- Public key (যেমন Stripe publishable, Google Maps) হলে **domain/IP/API restriction** দিন
+- Git এ `.env` commit করবেন না
+
+### Source map production এ কেন সমস্যা হতে পারে?
+Source map আপনার আসল source code (কমেন্ট, logic, কখনো key) আক্রমণকারীকে সহজে দেখিয়ে দেয়। Production এ public source map বন্ধ রাখুন, বা error tracking (Sentry) এ private ভাবে upload করুন।
+
+### Third-party script ও npm package নিরাপত্তা (supply chain) কীভাবে নিশ্চিত করবে?
+- `npm audit`, Dependabot/Renovate দিয়ে দুর্বলতা নজরদারি
+- **Lockfile** commit এবং CI তে `npm ci`
+- অপরিচিত বা অচল (unmaintained) package এড়ানো, নাম ভুল করানো (typosquatting) থেকে সাবধান
+- `postinstall` script এর ঝুঁকি, প্রয়োজনে `--ignore-scripts`
+- CDN এর script এ **Subresource Integrity (SRI)**
+- তৃতীয় পক্ষের analytics/chat script সীমিত রাখা, CSP দিয়ে সীমানা
+- npm ও GitHub account এ 2FA
+
+সাম্প্রতিক বছরগুলোতে npm এ বড় supply-chain আক্রমণ ঘটেছে, তাই এটি আজ গুরুত্বপূর্ণ প্রশ্ন।
+
+### Subresource Integrity (SRI) কী?
+CDN থেকে আনা script/style এ `integrity` hash দিলে browser file টি বদলে গেছে কিনা যাচাই করে, বদলালে লোড করে না।
+
+```html
+<link rel="stylesheet" href="https://cdn.example.com/lib.css"
+      integrity="sha384-..." crossorigin="anonymous">
+<!-- script tag এও একই: src, integrity, crossorigin attribute -->
+```
+
+### Open redirect কী? কীভাবে এড়াবে?
+`/login?returnTo=https://evil.com` এ login এর পর user কে বাইরের ক্ষতিকর site এ পাঠিয়ে দেওয়া, যা phishing এ ব্যবহার হয়। প্রতিরোধ: redirect শুধু নিজের site এর **relative path** এ অনুমোদন, বা allowlist।
+
+```js
+function safeReturnTo(url) {
+  return url && url.startsWith("/") && !url.startsWith("//") ? url : "/";
+}
+```
+
+### `target="_blank"` এ `rel="noopener noreferrer"` কেন?
+`noopener` ছাড়া নতুন tab এর পেজ `window.opener` দিয়ে মূল tab এর location বদলে দিতে পারত (tabnabbing)। আধুনিক browser এ `_blank` এ `noopener` ডিফল্ট ধরা হয়, তবু লেখা ভালো অভ্যাস। `noreferrer` Referer header ও লুকায়।
+
+### Same-Origin Policy কী? CORS কীভাবে সম্পর্কিত?
+**Same-Origin Policy**: এক origin (protocol + domain + port) এর script অন্য origin এর data পড়তে পারে না, browser এ বাধ্যতামূলক। **CORS** হলো server কে নিয়ন্ত্রিতভাবে এই নিয়ম শিথিল করার উপায় (`Access-Control-Allow-Origin`)।
+
+গুরুত্বপূর্ণ: CORS শুধু **browser** এ প্রযোজ্য। এটা server কে সুরক্ষা দেয় না (curl/Postman এর উপর কোনো প্রভাব নেই), তাই authentication ও authorization লাগবেই।
+
+### `postMessage` ও `iframe` নিরাপদে কীভাবে ব্যবহার করবে?
+- `postMessage` এ পাঠানোর সময় নির্দিষ্ট `targetOrigin` (`"*"` নয়)
+- গ্রহণের সময় `event.origin` যাচাই
+- অবিশ্বাস্য content `iframe sandbox` attribute দিয়ে সীমিত করা
+- প্রয়োজনের বেশি অনুমতি (`allow-scripts allow-same-origin` একসাথে) এড়ানো
+
+### Client-side validation ও server-side validation এর ভূমিকা কী?
+- **Client**: দ্রুত feedback, ভালো UX। কিন্তু নিরাপত্তা নয়, কারণ সহজে এড়ানো যায়।
+- **Server**: আসল সুরক্ষা। সব input আবার যাচাই (type, দৈর্ঘ্য, ফরম্যাট, পরিসর)।
+
+দুটোই দরকার, কিন্তু শুধু server টি নিরাপত্তা দেয়।
+
+### Frontend এ authentication token সংরক্ষণ নিয়ে সংক্ষেপে কী বলবে?
+সংবেদনশীল token `HttpOnly, Secure, SameSite` cookie তে রাখা সবচেয়ে নিরাপদ, কারণ `localStorage` এ XSS হলে সহজে চুরি যায়। (বিস্তারিত "Authentication ও Authorization" tab এ।)
+
+### HTTPS, HSTS ও mixed content কী?
+- **HTTPS**: যোগাযোগ এনক্রিপ্টেড (TLS)। man-in-the-middle ঠেকায়।
+- **HSTS** (`Strict-Transport-Security`): browser কে বলে এই site এ সবসময় HTTPS ব্যবহার করতে, downgrade আক্রমণ আটকায়।
+- **Mixed content**: HTTPS পেজে HTTP resource (script/image) লোড করা। browser ব্লক করে বা সতর্ক করে।
+
+### কোন security header গুলো frontend/web server এ দেবে?
+- `Content-Security-Policy`: script/resource এর উৎস সীমিত (XSS)
+- `Strict-Transport-Security`: সবসময় HTTPS
+- `X-Content-Type-Options: nosniff`: MIME type অনুমান বন্ধ
+- `X-Frame-Options: DENY` / CSP `frame-ancestors`: clickjacking
+- `Referrer-Policy: strict-origin-when-cross-origin`: Referer এ কতটা URL যাবে
+- `Permissions-Policy`: camera, mic, geolocation ইত্যাদি সীমিত
+- `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy`: cross-origin আইসোলেশন
+
+```js
+// next.config.js
+module.exports = {
+  async headers() {
+    return [{
+      source: "/(.*)",
+      headers: [
+        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      ],
+    }];
+  },
+};
+```
+
+### Next.js এ নিরাপত্তা সংক্রান্ত বিশেষ বিষয় কী কী?
+- `NEXT_PUBLIC_` env browser এ যায়, secret এ ব্যবহার করবেন না
+- **Server Action public POST endpoint**, ভেতরে auth ও validation লাগে
+- Middleware একমাত্র সুরক্ষা নয় (সময়ে সময়ে framework এ দুর্বলতা ধরা পড়ে, যেমন middleware bypass), তাই data এর কাছে যাচাই (Data Access Layer)
+- `server-only` package দিয়ে secret code client bundle থেকে দূরে রাখা
+- `dangerouslySetInnerHTML` ও `next/image` এর `remotePatterns` সীমিত রাখা
+- Framework ও dependency নিয়মিত আপডেট
+
+### Prototype pollution কী?
+আক্রমণকারী `__proto__` বা `constructor.prototype` এ property বসিয়ে সব object এ অনাকাঙ্ক্ষিত মান ঢুকিয়ে দেয়। সাধারণত অনিরাপদ deep merge/clone বা `Object.assign` ধরনের কাজে হয়। প্রতিরোধ: user input থেকে আসা key যাচাই (`__proto__`, `constructor`, `prototype` বাদ), `Object.create(null)`, `Map` ব্যবহার, library আপডেট (lodash পুরোনো version)।
+
+### File upload এর ক্ষেত্রে frontend এ কী করা যায়? (এবং সীমাবদ্ধতা)
+- File type ও size আগে যাচাই করে দ্রুত feedback দেওয়া (`accept`, `file.size`)
+- Preview এর সময় `URL.createObjectURL` ও পরে `revokeObjectURL`
+
+এগুলো শুধু UX। আসল সুরক্ষা server এ (পরের সেকশনে)। Client এর MIME type/extension বিশ্বাসযোগ্য নয়।
+
+### Sensitive data URL, log বা browser storage এ রাখলে কী সমস্যা?
+- URL এ (token, password, personal data) browser history, server log, Referer header ও share করা লিংকে ফাঁস হয়
+- Console log এ থেকে গেলে শেয়ার করা screenshot এ ফাঁস
+- `localStorage`/`sessionStorage` এ থাকলে XSS এ চুরি
+
+সংবেদনশীল data URL এ রাখবেন না, `POST` body বা cookie ব্যবহার করুন।
+
+### Bot ও spam থেকে form কীভাবে বাঁচাবে?
+CAPTCHA/Turnstile/reCAPTCHA, honeypot field, rate limiting, email verification, ও server এ validation। শুধু frontend এ CAPTCHA যথেষ্ট নয়, token server এ যাচাই করতে হয়।
+
+## ৩. Backend Security
+
+### SQL injection কী? কীভাবে প্রতিরোধ করবে?
+User input কে সরাসরি SQL string এ জুড়ে দিলে আক্রমণকারী নিজের SQL চালিয়ে দিতে পারে (data চুরি, মোছা, login bypass)।
+
+```js
+// বিপজ্জনক
+db.query(`SELECT * FROM users WHERE email = '${email}'`);
+// email = ' OR '1'='1  হলে সব user বেরিয়ে আসে
+
+// নিরাপদ: parameterized query
+db.query("SELECT * FROM users WHERE email = $1", [email]);
+```
+
+প্রতিরোধ: সবসময় **parameterized query/prepared statement**, ORM (raw query তে সাবধান), input validation, database user এর least privilege, ত্রুটি বার্তায় SQL না দেখানো।
+
+### NoSQL injection কী?
+MongoDB তে input এর বদলে operator পাঠানো, যেমন login body তে `{ "email": "a@b.com", "password": { "$ne": null } }` পাঠিয়ে password যাচাই এড়ানো।
+
+প্রতিরোধ: input এর **type যাচাই** (string কিনা, `zod`), `express-mongo-sanitize`, `$where` এড়ানো, ORM/ODM schema ব্যবহার।
+
+### Command injection ও path traversal কী?
+- **Command injection**: user input দিয়ে system command চালানো (`exec("convert " + filename)`)। প্রতিরোধ: `exec` এড়ানো, `execFile`/`spawn` এ argument array, input allowlist।
+- **Path traversal**: `../../etc/passwd` দিয়ে সীমার বাইরের ফাইল পড়া। প্রতিরোধ: path normalize করে নির্দিষ্ট folder এর ভেতরে কিনা যাচাই, ফাইলের নাম allowlist।
+
+```js
+const path = require("path");
+const base = path.resolve("uploads");
+const target = path.resolve(base, userFile);
+if (!target.startsWith(base + path.sep)) throw new Error("Invalid path");
+```
+
+### Input validation ও sanitization এর পার্থক্য কী? কীভাবে করবে?
+- **Validation**: input আমাদের নিয়ম মানছে কিনা যাচাই (type, দৈর্ঘ্য, ফরম্যাট), না মানলে প্রত্যাখ্যান
+- **Sanitization**: input থেকে ক্ষতিকর অংশ সরানো/বদলানো
+- **Output encoding**: output এর context অনুযায়ী escape
+
+**Allowlist** (যা অনুমোদিত শুধু তাই) নীতি, denylist এর চেয়ে নিরাপদ। Schema validation: `zod`, `joi`, `class-validator`।
+
+```js
+import { z } from "zod";
+const schema = z.object({
+  email: z.string().email().max(254),
+  age: z.number().int().min(0).max(120),
+});
+const result = schema.safeParse(req.body);
+if (!result.success) return res.status(400).json(result.error.flatten());
+```
+
+### Mass assignment কী? কীভাবে এড়াবে?
+Request body সরাসরি model এ সেট করে ফেলা, ফলে user এমন field ও বদলাতে পারে যা তার বদলানোর কথা নয় (`role: "admin"`, `isPaid: true`)।
+
+```js
+// বিপজ্জনক
+await User.create(req.body);                // body তে role: "admin" থাকতে পারে
+
+// নিরাপদ: শুধু অনুমোদিত field
+const { name, email, password } = req.body;
+await User.create({ name, email, password });
+```
+
+প্রতিরোধ: allowlist field, schema validation (`zod` strict), DTO ব্যবহার।
+
+### Broken Access Control ও IDOR কী? (OWASP এর #১)
+User এমন resource/কাজে ঢুকতে পারে যার অনুমতি তার নেই। IDOR (BOLA): `/orders/123` কে `/orders/124` করে অন্যের order দেখা।
+
+প্রতিরোধ: প্রতিটি request এ **server এ authorization ও ownership যাচাই** (`WHERE id = ? AND user_id = ?`), default deny, role/permission কেন্দ্রীভূত, শুধু UI লুকানো যথেষ্ট নয়।
+
+### SSRF (Server-Side Request Forgery) কী?
+Server কে দিয়ে আক্রমণকারীর পছন্দের URL এ request করানো (যেমন "image URL থেকে import" feature)। এর মাধ্যমে ভেতরের network (`http://localhost`, `http://169.254.169.254` cloud metadata) এ ঢুকে secret চুরি সম্ভব।
+
+প্রতিরোধ:
+
+- URL এর **allowlist** (শুধু নির্দিষ্ট domain)
+- Private/internal IP ব্লক (`127.0.0.1`, `10.x`, `169.254.x`)
+- Redirect অনুসরণ বন্ধ বা যাচাই
+- Cloud এ IMDSv2, ন্যূনতম IAM অনুমতি
+- Server এর network থেকে ভেতরের সেবায় সীমিত access
+
+### Rate limiting ও DDoS/brute force সুরক্ষা কীভাবে করবে?
+- API/login এ rate limit (প্রতি IP/user/key এ), Redis দিয়ে বিতরণকৃত
+- Exponential backoff, সাময়িক lockout, CAPTCHA
+- Request body আকার ও timeout সীমিত
+- CDN/WAF (Cloudflare, AWS WAF) ও caching
+- Autoscaling, load balancer
+- ব্যয়বহুল endpoint (search, export, password reset) এ কড়া সীমা
+
+```js
+import rateLimit from "express-rate-limit";
+app.use("/api/auth/login", rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }));
+app.use("/api", rateLimit({ windowMs: 60 * 1000, max: 100 }));
+```
+
+### Secret (API key, password, token) কীভাবে নিরাপদে সামলাবে?
+- Code ও Git এ কখনো নয় (`.env` কে `.gitignore` এ)
+- Environment variable বা **secret manager** (AWS Secrets Manager, Vault, Doppler)
+- Environment ভেদে আলাদা secret, নিয়মিত **rotate**
+- ফাঁস হলে সাথে সাথে বাতিল ও নতুন তৈরি (Git history থেকে মুছলেও আগে চুরি হয়ে থাকতে পারে)
+- CI এ secret scan (`gitleaks`, GitHub secret scanning)
+- Log এ secret প্রিন্ট না করা
+
+### Security header ও `helmet` কী? Express এ নিরাপত্তা middleware সাজাও
+`helmet` Express এ নিরাপদ HTTP header স্বয়ংক্রিয়ভাবে বসায় (CSP, HSTS, `nosniff` ইত্যাদি)।
+
+```js
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import hpp from "hpp";
+import cookieParser from "cookie-parser";
+
+const app = express();
+app.disable("x-powered-by");                          // framework গোপন
+app.use(helmet());
+app.use(cors({ origin: ["https://app.example.com"], credentials: true }));
+app.use(express.json({ limit: "10kb" }));             // বড় body আটকানো
+app.use(hpp());                                       // HTTP parameter pollution
+app.use(cookieParser());
+app.use("/api", rateLimit({ windowMs: 60_000, max: 100 }));
+```
+
+### CORS ঠিকভাবে কীভাবে কনফিগার করবে? সাধারণ ভুল কী?
+শুধু বিশ্বস্ত origin allowlist এ রাখুন।
+
+সাধারণ ভুল:
+
+- `Access-Control-Allow-Origin: *` সংবেদনশীল API তে
+- Request এর `Origin` header হুবহু ফেরত দেওয়া (সবাইকে অনুমতি)
+- `credentials: true` এর সাথে অতিরিক্ত উদার নীতি
+- CORS কে নিরাপত্তার ব্যবস্থা মনে করা (এটা শুধু browser এর নিয়ম)
+
+### File upload নিরাপদ করবে কীভাবে? (backend)
+- **ফাইলের ধরন যাচাই** magic bytes/content দেখে, শুধু extension বা `Content-Type` নয়
+- **আকার সীমা**, ফাইলের সংখ্যা সীমা
+- **নাম বদলে random** করা (path traversal ও overwrite এড়াতে)
+- **Web root এর বাইরে** বা object storage (S3) এ রাখা, কখনো execute হতে না দেওয়া
+- Malware scan (ClamAV), ছবি re-encode
+- আলাদা domain থেকে পরিবেশন, `Content-Disposition`/`nosniff`
+- Private ফাইলে signed URL ও অ্যাক্সেস নিয়ন্ত্রণ
+
+### Webhook নিরাপদ করবে কীভাবে? (signature verification)
+Webhook endpoint public, তাই কে পাঠাল যাচাই করতে **HMAC signature** মিলিয়ে দেখুন, আর **constant-time** তুলনা করুন (timing attack এড়াতে)। Raw body দিয়ে hash করতে হয়, parsed JSON দিয়ে নয়।
+
+```js
+import crypto from "crypto";
+
+function verifySignature(rawBody, receivedSig, secret) {
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(receivedSig);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+```
+সাথে timestamp যাচাই (replay আটকাতে) ও event id দিয়ে idempotency।
+
+### Timing attack কী?
+তুলনায় কত সময় লাগছে মেপে গোপন মান অনুমান করা (যেমন `===` দিয়ে token তুলনায় প্রথম অমিল পর্যন্ত যে সময়)। প্রতিরোধ: `crypto.timingSafeEqual` (সমান দৈর্ঘ্যের buffer এ), এবং password এর জন্য bcrypt/argon2 এর নিজস্ব তুলনা।
+
+### ReDoS (Regex DoS) কী?
+জটিল/অসতর্ক regex এ বিশেষ input দিলে ক্ষমতা ঘাতীয় হারে বাড়ে (catastrophic backtracking), ফলে server এর CPU আটকে যায় (Node এর event loop আটকে)। প্রতিরোধ: সরল regex, input দৈর্ঘ্য সীমা, নিরাপদ engine (`re2`), user input থেকে regex বানাবেন না।
+
+### Error handling এ নিরাপত্তার দিক কী?
+- Production এ stack trace, SQL, file path ব্যবহারকারীকে দেখাবেন না
+- সাধারণ বার্তা ফেরত দিন, বিস্তারিত শুধু log এ
+- Login এ "email ভুল" ও "password ভুল" আলাদা না বলে একই বার্তা (user enumeration আটকাতে)
+- `NODE_ENV=production`, debug mode বন্ধ
+
+```js
+app.use((err, req, res, next) => {
+  console.error(err);                                   // বিস্তারিত log এ
+  res.status(500).json({ message: "Something went wrong" });   // user কে সাধারণ বার্তা
+});
+```
+
+### Logging ও monitoring এ নিরাপত্তার দিক কী?
+- নিরাপত্তা ঘটনা log করুন: login ব্যর্থতা, অনুমতি অস্বীকার, admin কাজ
+- **Secret/password/token/card number log এ লিখবেন না**
+- Log কে কেন্দ্রীভূত রাখুন (ELK, Datadog), অননুমোদিত পরিবর্তন থেকে সুরক্ষিত
+- সন্দেহজনক আচরণে alert (অনেক ব্যর্থ login, অস্বাভাবিক traffic)
+- Audit log: কে, কখন, কী করল
+
+### Dependency vulnerability কীভাবে সামলাবে? (backend)
+- `npm audit`/`npm audit fix`, Snyk, Dependabot, Renovate
+- Lockfile ও `npm ci`
+- ন্যূনতম dependency রাখা, অব্যবহৃত সরানো
+- Production dependency নিয়মিত আপডেট, গুরুতর CVE তে দ্রুত patch
+- Docker image ও scan করা (Trivy)
+
+### Deserialization ও `eval` কেন বিপজ্জনক?
+অবিশ্বাস্য data কে object এ রূপান্তর করার সময় (`unserialize`, YAML load, `eval`) আক্রমণকারী code চালানোর সুযোগ পেতে পারে। `JSON.parse` তুলনামূলক নিরাপদ, কিন্তু `eval`, `new Function`, `vm` এ user input কখনো নয়।
+
+### Security misconfiguration কী? উদাহরণ দাও
+ভুল বা ডিফল্ট সেটিং থেকে সৃষ্ট দুর্বলতা:
+
+- ডিফল্ট user/password বদলানো হয়নি
+- Debug mode/verbose error production এ চালু
+- অপ্রয়োজনীয় port/সেবা খোলা, database public internet এ
+- S3 bucket public
+- Directory listing চালু, `.env`/`.git` public
+- নিরাপত্তা header নেই, CORS অতি-উদার
+- ক্লাউডে অতিরিক্ত IAM অনুমতি
+
+### Docker ও container নিরাপত্তা (backend/DevOps)
+- **Non-root user** দিয়ে container চালানো
+- ছোট base image (`alpine`/`distroless`), শুধু দরকারি জিনিস
+- Image এ secret না রাখা (build arg বা layer এ থেকে যায়), runtime এ secret manager
+- Image scan (Trivy), version pin
+- Read-only filesystem, অপ্রয়োজনীয় capability বাদ
+- `.dockerignore` এ `.env`, `.git`
+
+### Cloud নিরাপত্তার মৌলিক বিষয় কী?
+- **IAM least privilege**, root account এ MFA ও ব্যবহার এড়ানো
+- Storage bucket ডিফল্টে private
+- Security group/firewall এ শুধু দরকারি port
+- Database public এ নয়, private subnet এ
+- Secret manager, key rotation
+- Logging (CloudTrail), alert
+- Encryption at rest ও in transit
+
+### Encryption at rest ও in transit কী?
+- **In transit**: network এ যাওয়ার সময় (TLS/HTTPS, database সংযোগে `sslmode=require`)
+- **At rest**: disk/database/backup এ সংরক্ষিত অবস্থায় (disk encryption, KMS)
+
+দুটোই দরকার। গোপন data এর জন্য application level এ field encryption ও করা যায়।
+
+### API security এর জন্য কী কী করবে? (OWASP API Top 10)
+২০২৩ OWASP API Security Top 10 এর সার:
+
+- **API1 BOLA** (object level authorization), ownership যাচাই
+- **API2 Broken Authentication**
+- **API3 Broken Object Property Level Authorization** (অতিরিক্ত field ফাঁস বা mass assignment)
+- **API4 Unrestricted Resource Consumption** (rate limit, pagination সীমা, payload সীমা)
+- **API5 Broken Function Level Authorization** (admin endpoint সুরক্ষা)
+- **API6 Unrestricted Access to Sensitive Business Flows** (bot দিয়ে কেনা/অপব্যবহার)
+- **API7 SSRF**
+- **API8 Security Misconfiguration**
+- **API9 Improper Inventory Management** (পুরোনো/অজানা API version খোলা)
+- **API10 Unsafe Consumption of APIs** (তৃতীয় পক্ষের API এর response অন্ধভাবে বিশ্বাস)
+
+ব্যবহারিক: response এ শুধু দরকারি field (DTO), pagination সীমা (`limit` সর্বোচ্চ), অচেনা field প্রত্যাখ্যান, API key/token ও ছোট মেয়াদ।
+
+### GraphQL এ বিশেষ নিরাপত্তা বিষয় কী?
+Query depth/complexity সীমা (DoS), introspection production এ বন্ধ বা সীমিত, প্রতিটি resolver এ authorization, rate limiting, batching আক্রমণ সীমা, input validation।
+
+## ৪. Authentication ও Session এর নিরাপত্তা (সংক্ষেপে)
+
+### Password নিরাপদে সংরক্ষণ (সংক্ষেপে)
+`argon2id`/`bcrypt` দিয়ে salt সহ hash। কখনো plain text, MD5 বা SHA1 নয়। (বিস্তারিত "Authentication ও Authorization" tab এ।)
+
+### Session ও cookie নিরাপত্তা (সংক্ষেপে)
+`HttpOnly`, `Secure`, `SameSite`, ছোট মেয়াদ, login এর পর session id নতুন, logout এ server এ বাতিল, MFA, rate limiting।
+
+### JWT নিয়ে নিরাপত্তার মূল কথা (সংক্ষেপে)
+Algorithm চাপিয়ে verify, ছোট মেয়াদ, secret শক্তিশালী, payload এ গোপন কিছু নয়, refresh token rotation, সংরক্ষণ cookie তে।
+
+## ৫. Security Testing ও Process
+
+### SAST, DAST, SCA আর IAST এর পার্থক্য কী?
+- **SAST** (Static): source code বিশ্লেষণ করে দুর্বলতা খোঁজে (code না চালিয়ে)। উদাহরণ: SonarQube, Semgrep, CodeQL।
+- **DAST** (Dynamic): চলমান application এ বাইরে থেকে আক্রমণ চালিয়ে পরীক্ষা। উদাহরণ: OWASP ZAP, Burp Suite।
+- **SCA** (Software Composition Analysis): dependency এর জানা দুর্বলতা খোঁজে। উদাহরণ: `npm audit`, Snyk, Dependabot।
+- **IAST**: চলমান app এর ভেতর থেকে পরীক্ষা (SAST + DAST এর সমন্বয়)।
+
+### Penetration testing আর vulnerability scanning এর পার্থক্য কী?
+- **Vulnerability scan**: স্বয়ংক্রিয় tool দিয়ে জানা দুর্বলতার তালিকা, দ্রুত ও নিয়মিত
+- **Penetration test**: বিশেষজ্ঞ বাস্তব আক্রমণকারীর মতো দুর্বলতা কাজে লাগিয়ে দেখে কতটা ক্ষতি সম্ভব, গভীর কিন্তু ধীর
+
+### CI/CD pipeline এ কী কী নিরাপত্তা পরীক্ষা রাখবে?
+- Dependency scan (`npm audit`, Snyk)
+- Secret scan (`gitleaks`)
+- SAST (Semgrep/CodeQL)
+- Container image scan (Trivy)
+- Lint ও type check
+- Branch protection, code review বাধ্যতামূলক
+- Secret CI এর secret store এ, লগে প্রিন্ট না হওয়া
+
+### Security incident হলে কী করবে? (Incident response)
+ধাপ: **প্রস্তুতি → শনাক্ত → আটকানো (contain) → নির্মূল (eradicate) → পুনরুদ্ধার → শিক্ষা (post-mortem)**।
+
+বাস্তবে: ক্ষতিগ্রস্ত সিস্টেম বিচ্ছিন্ন, ফাঁস হওয়া secret/token বাতিল ও নতুন তৈরি, কারণ খুঁজে বন্ধ করা, ব্যবহারকারী ও কর্তৃপক্ষকে (আইন অনুযায়ী) জানানো, log সংরক্ষণ, ঘটনা থেকে শিক্ষা নিয়ে প্রক্রিয়া ঠিক করা।
+
+### Security headers আর web security কীভাবে পরীক্ষা করবে?
+securityheaders.com, Mozilla Observatory, Lighthouse (best practices), OWASP ZAP, browser DevTools এর Network tab, `npm audit`, Burp Suite। CSP নতুন বসালে Report-Only mode এ আগে দেখুন।
+
+### Responsible disclosure ও bug bounty কী?
+নিরাপত্তা গবেষক দুর্বলতা পেলে প্রকাশ্যে না এনে সংস্থাকে আগে জানান (responsible disclosure)। অনেক কোম্পানি bug bounty (পুরস্কার) চালায় (HackerOne, Bugcrowd)। `security.txt` ফাইলে যোগাযোগের তথ্য দেওয়া যায়।
+
+## ৬. Scenario ও কোডে দুর্বলতা খুঁজে বের করা
+
+### How would you secure a REST API? (সংক্ষিপ্ত checklist)
+- HTTPS ও HSTS
+- Authentication (ছোট মেয়াদের token) ও প্রতিটি endpoint এ authorization (ownership সহ)
+- Input validation (schema), parameterized query
+- Rate limiting, request আকার ও timeout সীমা
+- Response এ শুধু দরকারি field, pagination সীমা
+- Security header (helmet), সঠিক CORS
+- Secret manager, error এ তথ্য ফাঁস নয়
+- Logging/monitoring, audit log
+- Dependency scan ও আপডেট
+- API versioning ও পুরোনো endpoint বন্ধ
+
+### কীভাবে একটি E-commerce checkout নিরাপদ রাখবে?
+- **দাম কখনো client থেকে নেবেন না**, server এ product id থেকে দাম নতুন করে হিসাব
+- Card data নিজের server এ নয়: PCI-compliant provider (Stripe/SSLCommerz এর hosted fields/redirect)
+- Payment confirmation **webhook এর signature যাচাই করে**, client এর "success" এ ভরসা নয়
+- Order/payment এ **idempotency key**, stock এর atomic আপডেট
+- Rate limit, fraud/bot যাচাই
+- HTTPS, CSRF সুরক্ষা, ownership check (অন্যের order দেখা যাবে না)
+- Audit log
+
+### Token চুরি/ফাঁস হলে কী করবে?
+- ওই token/session ও refresh token সাথে সাথে বাতিল (denylist/token version)
+- সংশ্লিষ্ট user এর সব session বন্ধ, password reset বাধ্য
+- কীভাবে ফাঁস হলো খোঁজা (XSS, log, URL, device)
+- Secret/key ফাঁস হলে rotate
+- ক্ষতির পরিধি দেখে ব্যবহারকারীকে জানানো, log পরীক্ষা
+
+### DDoS থেকে কীভাবে বাঁচাবে?
+- CDN ও WAF (Cloudflare, AWS Shield/WAF)
+- Rate limiting ও connection limit
+- Caching (দামী query/পেজ cache)
+- Autoscaling ও load balancer
+- ব্যয়বহুল endpoint এ কড়া সীমা, timeout
+- Bot শনাক্ত (CAPTCHA, fingerprint)
+- Origin server এর IP লুকানো (শুধু CDN থেকে অনুমোদন)
+
+### নিচের code এ কী দুর্বলতা আছে? (SQL Injection)
+```js
+app.get("/user", async (req, res) => {
+  const rows = await db.query(`SELECT * FROM users WHERE id = ${req.query.id}`);
+  res.json(rows);
+});
+```
+উত্তর: **SQL injection** (`id=1 OR 1=1`)। এছাড়া কোনো authentication/authorization নেই, আর `SELECT *` সংবেদনশীল ফিল্ড (password hash) ও ফেরত দিতে পারে। ঠিক রূপ: parameterized query `WHERE id = $1`, auth middleware, শুধু দরকারি column।
+
+### নিচের code এ কী দুর্বলতা আছে? (IDOR)
+```js
+app.get("/api/orders/:id", requireAuth, async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  res.json(order);
+});
+```
+উত্তর: **IDOR/BOLA**: login করা যেকোনো user অন্যের order দেখতে পারে। ঠিক রূপ: `Order.findOne({ _id: req.params.id, userId: req.user.id })` এবং না পেলে `404`।
+
+### নিচের code এ কী দুর্বলতা আছে? (XSS)
+```jsx
+function Comment({ html }) {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+```
+উত্তর: **stored/reflected XSS**। `html` এ `<img src=x onerror=alert(1)>` এর মতো কিছু থাকলে চলবে। ঠিক রূপ: সাধারণ text হলে `{text}` দিয়ে দেখান, HTML দরকার হলে `DOMPurify.sanitize(html)`, সাথে CSP।
+
+### নিচের code এ কী দুর্বলতা আছে? (Mass assignment ও hardcoded secret)
+```js
+const JWT_SECRET = "mysecret123";
+app.post("/register", async (req, res) => {
+  const user = await User.create(req.body);
+  res.json({ token: jwt.sign({ id: user.id }, JWT_SECRET) });
+});
+```
+উত্তর: (১) secret code এ hardcoded ও দুর্বল, env/secret manager এ শক্তিশালী secret; (২) `req.body` সরাসরি, তাই `role: "admin"` পাঠানো যায় (mass assignment), শুধু অনুমোদিত field নিন; (৩) token এ মেয়াদ (`expiresIn`) নেই; (৪) password hash করা হচ্ছে না, input validation নেই।
+
+### নিচের CORS কনফিগারেশনে কী ভুল?
+```js
+app.use(cors({ origin: true, credentials: true }));
+```
+উত্তর: `origin: true` প্রতিটি request এর `Origin` হুবহু ফেরত দেয়, অর্থাৎ **যেকোনো site** cookie সহ আপনার API ডাকতে পারে (credentials সহ), যা বিপজ্জনক। ঠিক রূপ: নির্দিষ্ট allowlist (`origin: ["https://app.example.com"]`)।
+
+### নিচের login code এ কী সমস্যা?
+```js
+const user = await User.findOne({ email });
+if (!user) return res.status(404).json({ message: "Email not found" });
+if (user.password !== password) return res.status(401).json({ message: "Wrong password" });
+```
+উত্তর: (১) password plain text এ সংরক্ষিত ও সরাসরি তুলনা (hash `bcrypt.compare` লাগবে), (২) আলাদা বার্তা দেওয়ায় আক্রমণকারী কোন email নিবন্ধিত তা জেনে নিতে পারে (user enumeration), একই বার্তা দিন, (৩) rate limit নেই (brute force), (৪) timing পার্থক্য।
+
+### নিচের redirect এ কী সমস্যা?
+```js
+app.get("/go", (req, res) => res.redirect(req.query.url));
+```
+উত্তর: **Open redirect**। `/go?url=https://evil.com` দিয়ে phishing লিংক বিশ্বাসযোগ্য মনে করানো যায়। ঠিক রূপ: শুধু নিজের site এর relative path বা allowlist domain এ অনুমোদন।
+
+### নিচের file serving এ কী সমস্যা?
+```js
+app.get("/download", (req, res) => res.sendFile("/var/uploads/" + req.query.name));
+```
+উত্তর: **Path traversal** (`name=../../etc/passwd`)। ঠিক রূপ: `path.resolve` দিয়ে normalize ও base folder এর ভেতরে কিনা যাচাই, ফাইলের নাম allowlist বা id দিয়ে খোঁজা, ownership check।
+
+## ৭. Live Coding
+
+### Express এ নিরাপদ API এর minimal setup
+```js
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const app = express();
+app.disable("x-powered-by");
+app.use(helmet());
+app.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
+app.use(express.json({ limit: "10kb" }));
+app.use("/api", rateLimit({ windowMs: 60_000, max: 100 }));
+
+const loginSchema = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
+});
+
+app.post("/api/auth/login",
+  rateLimit({ windowMs: 15 * 60_000, max: 5 }),
+  async (req, res) => {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid input" });
+
+    const { email, password } = parsed.data;
+    const user = await db.user.findUnique({ where: { email } });
+    const ok = user && (await bcrypt.compare(password, user.passwordHash));
+    if (!ok) return res.status(401).json({ message: "Invalid credentials" });  // একই বার্তা
+
+    const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    res.cookie("access_token", token, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 15 * 60_000 });
+    res.json({ ok: true });
+  }
+);
+
+app.use((err, req, res, next) => {            // কেন্দ্রীয় error handler
+  console.error(err);
+  res.status(500).json({ message: "Something went wrong" });
+});
+```
+
+### Ownership যাচাইসহ নিরাপদ resource endpoint
+```js
+app.get("/api/orders/:id", requireAuth, async (req, res) => {
+  const order = await db.order.findFirst({
+    where: { id: req.params.id, userId: req.user.sub },    // ownership
+    select: { id: true, total: true, status: true },       // শুধু দরকারি field
+  });
+  if (!order) return res.status(404).json({ message: "Not found" });   // 403 নয়, অস্তিত্ব লুকাতে
+  res.json(order);
+});
+```
+
+### Next.js এ CSP nonce সহ middleware
+```ts
+// middleware.ts
+import { NextResponse, type NextRequest } from "next/server";
+
+export function middleware(req: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+
+  const headers = new Headers(req.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("Content-Security-Policy", csp);
+
+  const res = NextResponse.next({ request: { headers } });
+  res.headers.set("Content-Security-Policy", csp);
+  return res;
+}
+```
+
+### XSS থেকে বাঁচতে HTML sanitize
+```jsx
+import DOMPurify from "dompurify";
+
+function SafeHtml({ html }) {
+  const clean = useMemo(
+    () => DOMPurify.sanitize(html, { ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "p", "ul", "li"], ALLOWED_ATTR: ["href"] }),
+    [html]
+  );
+  return <div dangerouslySetInnerHTML={{ __html: clean }} />;
+}
+```
+সাথে CSP রাখুন, কারণ sanitizer এ ভুল হলেও CSP দ্বিতীয় স্তর হিসেবে কাজ করে। SSR এ `isomorphic-dompurify`।
+
+### Multer দিয়ে নিরাপদ file upload
+```js
+import multer from "multer";
+import crypto from "crypto";
+import path from "path";
+import { fileTypeFromBuffer } from "file-type";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },        // ২MB
+});
+
+app.post("/api/upload", requireAuth, upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file" });
+
+  const type = await fileTypeFromBuffer(req.file.buffer);   // magic bytes দেখে
+  const allowed = ["image/png", "image/jpeg", "image/webp"];
+  if (!type || !allowed.includes(type.mime))
+    return res.status(400).json({ message: "Invalid file type" });
+
+  const name = crypto.randomUUID() + "." + type.ext;        // random নাম
+  await storage.put(name, req.file.buffer);                 // S3/বাইরের storage, web root নয়
+  res.status(201).json({ name });
+});
+```
+
+### Safe redirect ও URL যাচাই
+```js
+function isSafeRedirect(url) {
+  if (typeof url !== "string") return false;
+  return url.startsWith("/") && !url.startsWith("//") && !url.includes("\\");
+}
+const dest = isSafeRedirect(req.query.returnTo) ? req.query.returnTo : "/dashboard";
+res.redirect(dest);
+```
+
+### SSRF থেকে বাঁচতে URL যাচাই
+```js
+import { URL } from "url";
+import dns from "dns/promises";
+import net from "net";
+
+const ALLOWED_HOSTS = new Set(["images.example.com"]);
+
+function isPrivateIp(ip) {
+  return /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip) || ip === "::1";
+}
+
+async function safeFetch(rawUrl) {
+  const url = new URL(rawUrl);
+  if (!["https:"].includes(url.protocol)) throw new Error("Only https");
+  if (!ALLOWED_HOSTS.has(url.hostname)) throw new Error("Host not allowed");
+  const { address } = await dns.lookup(url.hostname);
+  if (net.isIP(address) && isPrivateIp(address)) throw new Error("Private IP blocked");
+  return fetch(url, { redirect: "error" });                 // redirect অনুসরণ বন্ধ
+}
+```
+(এটি সরলীকৃত উদাহরণ। DNS rebinding এর মতো আক্রমণ ঠেকাতে সংযোগের সময় ও IP যাচাই লাগে।)
+
+### CSRF token (double submit) এর সহজ উদাহরণ
+```js
+// Server: token তৈরি করে cookie ও response এ পাঠানো
+app.get("/api/csrf", (req, res) => {
+  const token = crypto.randomBytes(32).toString("hex");
+  res.cookie("csrf", token, { sameSite: "strict", secure: true });   // JS পড়তে পারবে
+  res.json({ token });
+});
+
+// Client: প্রতিটি state বদলানো request এ header এ পাঠানো
+api.defaults.headers.common["X-CSRF-Token"] = token;
+
+// Server middleware: cookie ও header মেলানো
+const csrfCheck = (req, res, next) => {
+  const ok = req.cookies.csrf && req.cookies.csrf === req.get("X-CSRF-Token");
+  return ok ? next() : res.status(403).json({ message: "CSRF check failed" });
+};
+```
+বাস্তবে `SameSite` cookie ও library (`csrf-csrf`, framework এর built-in) ব্যবহার করা ভালো।
+
+### Security checklist (নিজেকে প্রশ্ন করো)
+- সব input server এ validate (schema, allowlist)?
+- Parameterized query, ORM এ raw query নিরাপদ?
+- প্রতিটি endpoint এ authentication ও ownership/authorization?
+- Secret code এ নেই, rotate হচ্ছে?
+- HTTPS, HSTS, security header, সঠিক CORS?
+- Rate limit, body size সীমা?
+- Error এ তথ্য ফাঁস নেই, log এ secret নেই?
+- Dependency scan ও নিয়মিত আপডেট?
+- Backup, monitoring ও alert আছে?
+- Admin এ MFA, audit log?
+</script>
+
 <script>
 function initTab(raw, root, prefix) {
   const app = root.querySelector(".app");
@@ -7593,8 +10200,14 @@ function initTab(raw, root, prefix) {
       title: "React Class Component Q&amp;A", ph: "প্রশ্ন খুঁজুন... (যেমন: lifecycle, setState, this)" },
     { id: "next", label: "Next.js (App Router, Pages Router)", icon: "Nx", src: "content-next",
       title: "Next.js Q&amp;A: App Router ও Pages Router", ph: "প্রশ্ন খুঁজুন... (যেমন: SSR, ISR, server component, middleware)" },
+    { id: "state", label: "State Management (Context, Redux, Zustand)", icon: "St", src: "content-state",
+      title: "State Management Q&amp;A: Context API, Redux, Zustand", ph: "প্রশ্ন খুঁজুন... (যেমন: Context, Redux Toolkit, Zustand, React Query)" },
+    { id: "auth", label: "Authentication & Authorization", icon: "Au", src: "content-auth",
+      title: "Authentication ও Authorization Q&amp;A: JWT, NextAuth, RBAC", ph: "প্রশ্ন খুঁজুন... (যেমন: JWT, refresh token, RBAC, NextAuth)" },
     { id: "db", label: "Database (SQL, PostgreSQL, MongoDB)", icon: "DB", src: "content-db",
-      title: "Database Q&amp;A: General, PostgreSQL, MongoDB", ph: "প্রশ্ন খুঁজুন... (যেমন: index, join, ACID, aggregation)" }
+      title: "Database Q&amp;A: General, PostgreSQL, MongoDB", ph: "প্রশ্ন খুঁজুন... (যেমন: index, join, ACID, aggregation)" },
+    { id: "security", label: "Security (Frontend ও Backend)", icon: "Sc", src: "content-security",
+      title: "Web Security Q&amp;A: Frontend ও Backend", ph: "প্রশ্ন খুঁজুন... (যেমন: XSS, CSRF, CSP, SQL injection, OWASP)" }
   ];
   const side = document.getElementById("side");
   const main = document.getElementById("main");
