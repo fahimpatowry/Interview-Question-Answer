@@ -6720,18 +6720,23 @@ export async function login(prev: unknown, formData: FormData) {
 ## ১. Database Basics (সাধারণ ধারণা)
 
 ### SQL আর NoSQL database এর পার্থক্য কী? কখন কোনটা?
-- **SQL (relational)**: table, row, column, নির্দিষ্ট schema। Table এর মধ্যে relation (foreign key) ও JOIN। উদাহরণ: PostgreSQL, MySQL।
-- **NoSQL**: নমনীয় schema, বিভিন্ন model (document, key-value, column, graph)। সহজে horizontal scale করা যায়। উদাহরণ: MongoDB (document), Redis (key-value), Cassandra (column), Neo4j (graph)।
+- **SQL** হলো structured query language, যা relational database এ ব্যবহার হয়। যেমন PostgreSQL, MySQL।
+- **NoSQL** হলো non-relational database। যেমন MongoDB।
+
+পার্থক্য:
+
+- **Data**: SQL এ structured data থাকে। NoSQL এ structured, semi-structured বা unstructured data থাকতে পারে।
+- **Schema**: SQL এ schema fixed থাকে। NoSQL এ schema flexible।
+- **Relation**: SQL এ table গুলো foreign key দিয়ে relation হয়। NoSQL এ embedding বা reference দিয়ে করা যায়।
+- **Data রাখার আকার**: SQL এ data table, row, column আকারে থাকে। MongoDB তে data collection, document, field আকারে থাকে।
 
 কখন কোনটা:
 
 - Data এর structure নির্দিষ্ট, relation বেশি, transaction ও consistency জরুরি (payment, order, inventory): **SQL**
-- Schema প্রায়ই বদলায়, নেস্টেড/অর্ধ-structured data, দ্রুত iterate, বিশাল scale (log, catalog, content): **NoSQL**
-
-"কোনটা ভালো" নয়, প্রয়োজন অনুযায়ী বেছে নিতে হয়। অনেক সময় দুটোই একসাথে ব্যবহার হয়।
+- Schema প্রায়ই বদলায়, nested বা semi-structured data, দ্রুত iterate ও বিশাল scale: **NoSQL**
 
 ### ACID কী?
-Transaction এর চারটি নিশ্চয়তা:
+ACID হলো database transaction এর ৪টি property।
 
 - **Atomicity**: transaction এর সব কাজ হয় পুরোটা সফল হবে, নয়তো কিছুই হবে না
 - **Consistency**: transaction শেষে database বৈধ অবস্থায় (constraint মেনে) থাকে
@@ -6750,13 +6755,17 @@ BASE হলো অনেক NoSQL এর দর্শন:
 ACID কঠোর consistency দেয়, BASE availability ও scale কে অগ্রাধিকার দেয়। (তবে MongoDB এখন multi-document ACID transaction ও দেয়।)
 
 ### CAP theorem কী?
-Distributed system এ তিনটির মধ্যে একসাথে সর্বোচ্চ দুটি পাওয়া যায়:
+CAP theorem হলো distributed system এর একটি theorem।
+
+Distributed database এ একাধিক node/server থাকে। তাদের মধ্যে network communication এ সমস্যা (partition) হলে system কে **consistency** বা **availability** এর মধ্যে একটিকে বেছে নিতে হয়, অর্থাৎ trade-off মেনে চলতে হয়।
+
+CAP এর তিনটি অংশ:
 
 - **Consistency**: সব node একই data দেখে
 - **Availability**: প্রতিটি request এর সাড়া মেলে
 - **Partition tolerance**: network ভেঙে গেলেও system চলে
 
-Network partition এড়ানো যায় না, তাই বাস্তবে **CP** (consistency ধরে রাখে, কিছু request ফেরত দেয় না) অথবা **AP** (available থাকে, কিন্তু পুরোনো data দিতে পারে) বেছে নিতে হয়।
+Network partition এড়ানো যায় না, তাই বাস্তবে **CP** (consistency রাখে, কিছু request ফেরত দেয় না) অথবা **AP** (available থাকে, কিন্তু পুরোনো data দিতে পারে) বেছে নিতে হয়।
 
 ### Normalization কী? 1NF, 2NF, 3NF কী?
 Data এর duplication কমাতে ও anomaly (insert/update/delete সমস্যা) এড়াতে table ভাঙার পদ্ধতি।
@@ -10045,7 +10054,6 @@ const csrfCheck = (req, res, next) => {
 <script>
 function initTab(raw, root, prefix) {
   const app = root.querySelector(".app");
-  const chipsEl = root.querySelector(".chips");
   const statsEl = root.querySelector(".stats");
   const emptyEl = root.querySelector(".empty");
   const searchEl = root.querySelector(".search");
@@ -10133,13 +10141,6 @@ function initTab(raw, root, prefix) {
     });
     app.appendChild(secEl);
 
-    const chip = document.createElement("button");
-    chip.className = "chip";
-    chip.textContent = s.title.replace(/^[০-৯0-9]+\.\s*/, "");
-    chip.addEventListener("click", function () {
-      secEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    chipsEl.appendChild(chip);
   });
 
   // ---------- stats ----------
@@ -10226,7 +10227,6 @@ function initTab(raw, root, prefix) {
           '<button class="expand">সব খুলুন</button>' +
           '<button class="collapse">সব বন্ধ করুন</button>' +
         '</div>' +
-        '<div class="row chips"></div>' +
         '<div class="stats"></div>' +
       '</div>' +
       '<div class="app"></div>' +
