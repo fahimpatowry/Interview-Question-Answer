@@ -7055,22 +7055,49 @@ WHERE table_schema = 'public';
 ```
 
 ### DBMS এর ধরন (model) গুলো কী কী?
-- **Hierarchical**: tree আকারে (parent-child), পুরোনো
-- **Network**: graph এর মতো, একাধিক parent
-- **Relational**: table ও সম্পর্ক (সবচেয়ে প্রচলিত)
+- **Hierarchical**: tree আকারে (parent-child), পুরোনো। Software: IBM Information Management System (IMS)
+- **Network**: graph এর মতো, একাধিক parent। Software: IDMS
+- **Relational**: table ও সম্পর্ক (সবচেয়ে প্রচলিত)। Software: PostgreSQL, MySQL, Microsoft SQL Server, Oracle Database, SQLite
 - **NoSQL**: document, key-value, column-family, graph
-- **Object-oriented**: object হিসেবে data সংরক্ষণ
+- **Object-oriented**: object হিসেবে data সংরক্ষণ। Software: ObjectDB, db4o
+
+NoSQL এর উদাহরণ:
+
+- **Document**: MongoDB, CouchDB, Amazon DocumentDB
+- **Key-value**: Redis, Amazon DynamoDB, Riak KV
 
 ### Database architecture: 1-tier, 2-tier আর 3-tier কী?
-- **1-tier**: user সরাসরি database এ (একই মেশিনে)
-- **2-tier**: client application সরাসরি database server এর সাথে কথা বলে
-- **3-tier**: client → application/server (business logic) → database। আজকের web app এ এটাই প্রচলিত (React → Node/Next.js API → database)। নিরাপত্তা ও scale ভালো, কারণ browser কখনো সরাসরি database ছোঁয় না।
+Database Architecture হলো Application, Database এবং User-এর মধ্যে কীভাবে communication ও interaction হবে, তার structural design।
+
+**1-Tier Architecture**
+
+- user সরাসরি database এ কাজ করে (একই মেশিনে)
+- Example: SQLite Desktop Application, Local MS Access Database
+
+**2-Tier Architecture**
+
+- client application সরাসরি database server এর সাথে কথা বলে
+- Example: ধরো, একটি Desktop Application আছে। Frontend: Java Swing, Database: MySQL Server।
+
+**3-Tier Architecture**
+
+তিনটি Layer হলো:
+
+- **Presentation Layer (Frontend)**: user যা দেখে ও ব্যবহার করে
+- **Application Layer (Backend)**: business logic
+- **Database Layer**: data সংরক্ষণ
+
+আজকের web app এ এটাই প্রচলিত (React → Node/Next.js API → database)। নিরাপত্তা ও scale ভালো, কারণ browser কখনো সরাসরি database ছোঁয় না।
 
 ### Database ভেতরে কীভাবে data সংরক্ষণ করে? (page, buffer pool)
 Disk এ data একটি নির্দিষ্ট আকারের **page/block** (PostgreSQL এ ডিফল্ট ৮KB) এ ভাগ করে রাখা হয়। Query এর সময় প্রয়োজনীয় page disk থেকে memory র **buffer pool/cache** এ আনা হয়। Memory তে থাকা page পড়া disk এর চেয়ে বহুগুণ দ্রুত। তাই "cache hit ratio" গুরুত্বপূর্ণ, আর index আছে মানে কম page পড়তে হয়। Crash থেকে বাঁচতে পরিবর্তন আগে **WAL/journal** এ লেখা হয়।
 
 ### Cursor কী?
-Query এর ফলাফলকে একটি একটি করে row ধরে ঘোরার উপায় (বড় result এ সব একসাথে memory তে না এনে)। সাধারণত set-based SQL (একটি query) cursor এর চেয়ে দ্রুত, তাই শুধু দরকারে ব্যবহার করুন। Node.js এ বড় result এর জন্য `pg-cursor`/stream ব্যবহার করা যায়।
+Database Cursor হলো একটি database object, যা Query-এর result set-এর records একবারে সব না নিয়ে একে একে (row by row) process করতে সাহায্য করে।
+
+সহজভাবে বললে, অনেকগুলো Row-এর মধ্যে একটির পর একটি Row নিয়ে কাজ করার জন্য Cursor ব্যবহার করা হয়।
+
+বড় result এ সব row একসাথে memory তে না এনে কাজ করতে এটি কাজে লাগে। সাধারণত set-based SQL (একটি query) cursor এর চেয়ে দ্রুত, তাই শুধু দরকারে ব্যবহার করুন। Node.js এ বড় result এর জন্য `pg-cursor`/stream ব্যবহার করা যায়।
 
 ## ৩. SQL ও PostgreSQL
 
@@ -7089,8 +7116,11 @@ LEFT JOIN orders o ON o.user_id = u.id;
 ```
 
 ### `WHERE` আর `HAVING` এর পার্থক্য কী?
-- `WHERE`: group করার **আগে** row filter করে। Aggregate function ব্যবহার করা যায় না।
-- `HAVING`: group করার **পরে** group filter করে। Aggregate function ব্যবহার করা যায়।
+- **কাজ**: `WHERE` Row filter করে, `HAVING` Group filter করে।
+- **Execution**: `WHERE` Grouping-এর **আগে** চলে, `HAVING` Grouping-এর **পরে** চলে।
+- **GROUP BY**: `WHERE` `GROUP BY` ছাড়াও ব্যবহার করা যায়। `HAVING` সাধারণত `GROUP BY`-এর সঙ্গে ব্যবহৃত হয়।
+- **Aggregate Function**: `WHERE` এ সরাসরি ব্যবহার করা যায় না, `HAVING` এ ব্যবহার করা যায়।
+- **Example**: `WHERE salary > 40000` এবং `HAVING AVG(salary) > 40000`
 
 ```sql
 SELECT dept, COUNT(*) AS cnt
@@ -7120,9 +7150,43 @@ Query লেখার ক্রম আর চলার ক্রম আলাদ
 `UNION` দুটি query এর ফল জুড়ে **duplicate সরিয়ে দেয়** (তাই ধীর)। `UNION ALL` duplicate সহ সব রাখে (দ্রুত)। Duplicate সরানোর দরকার না থাকলে `UNION ALL` ব্যবহার করুন।
 
 ### `DELETE`, `TRUNCATE` আর `DROP` এর পার্থক্য কী?
-- `DELETE`: `WHERE` দিয়ে নির্দিষ্ট row মোছে, row ধরে ধরে। ধীর, trigger চলে, rollback করা যায়।
-- `TRUNCATE`: table এর সব row একসাথে মোছে। দ্রুত, `WHERE` নেই। PostgreSQL এ transaction এর ভেতরে rollback করা যায়।
-- `DROP`: table এর structure সহ পুরোটাই মুছে ফেলে।
+**কাজ:**
+
+- `DELETE`: নির্দিষ্ট (`WHERE` দিয়ে) বা সব row delete করে।
+- `TRUNCATE`: একসাথে সব row remove করে।
+- `DROP`: পুরো table ও data remove করে।
+
+**Index এর ক্ষেত্রে:**
+
+- `DELETE`: Structure থাকে, deleted row গুলোর entry remove হয়।
+- `TRUNCATE`: Structure থাকে, সব entry remove হয়।
+- `DROP`: Index structure সহ সব remove হয়।
+
+মনে রাখবে:
+
+- `DELETE` → Selected / All Rows Remove
+- `TRUNCATE` → All Rows Remove
+- `DROP` → Entire Table Remove
+
+```sql
+DELETE FROM orders WHERE status = 'cancelled';  -- নির্দিষ্ট row
+DELETE FROM orders;                              -- সব row (ধীর)
+TRUNCATE TABLE orders;                           -- সব row (দ্রুত)
+DROP TABLE orders;                               -- table ই নেই
+```
+
+আরও যা জানা দরকার:
+
+- **ধরন**: `DELETE` হলো DML। `TRUNCATE` ও `DROP` হলো DDL (বেশিরভাগ database এ)।
+- **`WHERE`**: শুধু `DELETE` এ দেওয়া যায়। `TRUNCATE` ও `DROP` এ নেই।
+- **গতি**: `DELETE` row ধরে ধরে মোছে ও প্রতিটির log রাখে, তাই বড় table এ ধীর। `TRUNCATE` একবারে পুরো storage খালি করে, তাই দ্রুত।
+- **Trigger**: `DELETE` এ প্রতিটি row এর `ON DELETE` trigger চলে। `TRUNCATE` এ row-level delete trigger চলে না।
+- **Rollback**: `DELETE` সব database এ rollback করা যায়। `TRUNCATE` PostgreSQL ও SQL Server এ transaction এর ভেতরে rollback করা যায়, কিন্তু MySQL ও Oracle এ করা যায় না (auto-commit হয়ে যায়)।
+- **Auto-increment / identity**: `TRUNCATE` MySQL এ counter শূন্য থেকে শুরু করে। PostgreSQL এ ডিফল্টে করে না, `TRUNCATE ... RESTART IDENTITY` দিতে হয়। `DELETE` counter বদলায় না।
+- **Foreign key**: অন্য table যদি এই table কে reference করে, `TRUNCATE` সরাসরি চলে না। `TRUNCATE ... CASCADE` লাগে (reference করা table এর data ও যায়)। `DROP` এও `CASCADE` লাগতে পারে।
+- **PostgreSQL এ জায়গা**: `DELETE` এ row আসলে সরে না, "dead tuple" হিসেবে থাকে। `VACUUM` এর পরে জায়গা পুনরায় ব্যবহারযোগ্য হয় (bloat হতে পারে)। `TRUNCATE` সাথে সাথে জায়গা ফেরত দেয়।
+- **Lock**: `TRUNCATE` পুরো table এ কড়া lock (`ACCESS EXCLUSIVE` in PostgreSQL) নেয়, তাই চলার সময় অন্য query আটকে যায়। `DELETE` এ row-level lock।
+- **Interview tip**: সব row মুছতে চাইলে এবং trigger/rollback এর দরকার না থাকলে `TRUNCATE`। কিছু row মুছতে বা trigger চালাতে হলে `DELETE`। Table ই আর লাগবে না হলে `DROP`।
 
 ### Primary key এর জন্য `SERIAL`, `IDENTITY` আর `UUID` এর তুলনা
 - `SERIAL`: পুরোনো পদ্ধতি, sequence এর shortcut
