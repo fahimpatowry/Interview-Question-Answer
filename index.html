@@ -10143,6 +10143,35 @@ function initTab(raw, root, prefix) {
 
   });
 
+  // ---------- section number shortcuts (শুধু Database tab) ----------
+  const JUMP = { db: [17, 13, 9, 7, 6, 4, 3, 2, 1] };
+  if (JUMP[prefix]) {
+    const bn = "০১২৩৪৫৬৭৮৯";
+    const secIndex = {};
+    sections.forEach(function (s, si) {
+      const m = s.title.match(/^([০-৯]+)\./);
+      if (!m) return;
+      const n = parseInt(m[1].split("").map(function (c) { return bn.indexOf(c); }).join(""), 10);
+      if (!(n in secIndex)) secIndex[n] = si;
+    });
+    const row = document.createElement("div");
+    row.className = "row chips";
+    JUMP[prefix].forEach(function (n) {
+      if (!(n in secIndex)) return;
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = n;
+      b.title = sections[secIndex[n]].title;
+      b.addEventListener("click", function () {
+        const el = root.querySelector("#sec-" + secIndex[n]);
+        if (el.style.display === "none") { searchEl.value = ""; applySearch(); }
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      row.appendChild(b);
+    });
+    statsEl.parentNode.insertBefore(row, statsEl);
+  }
+
   // ---------- stats ----------
   function updateStats() {
     const doneCount = Object.keys(known).length;
