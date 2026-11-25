@@ -6998,6 +6998,26 @@ Database এর কাঠামো ছবির মাধ্যমে দেখ�
 
 অর্থাৎ SQL হলো ভাষা, MySQL/PostgreSQL হলো তার implementation। প্রতিটির নিজস্ব কিছু অতিরিক্ত syntax ও feature আছে।
 
+**PostgreSQL vs MySQL:**
+
+- **Type**: PostgreSQL হলো ORDBMS, MySQL হলো RDBMS
+- **SQL features**: PostgreSQL বেশি advanced, MySQL তুলনামূলক simpler
+- **Complex queries**: PostgreSQL খুব শক্তিশালী, MySQL ভালো
+- **CTE**: দুটোতেই আছে
+- **Window Functions**: দুটোতেই আছে
+- **JSON**: দুটোতেই আছে
+- **JSONB**: PostgreSQL এ Native আছে, MySQL এ JSONB নেই
+- **Array type**: PostgreSQL এ Native আছে, MySQL এ সাধারণভাবে native array type নেই
+- **MVCC**: PostgreSQL এ আছে, MySQL এ InnoDB-তে আছে
+- **Extensibility**: PostgreSQL এ খুব বেশি, MySQL এ তুলনামূলক কম
+- **Index types**: PostgreSQL এ B-tree, GIN, GiST, BRIN ইত্যাদি। MySQL এ B-tree সহ বিভিন্ন index capability
+- **Foreign Keys**: PostgreSQL এ আছে, MySQL এ InnoDB তে আছে
+- **Transactions**: PostgreSQL এ আছে, MySQL এ InnoDB তে আছে
+- **GIS**: PostgreSQL এ PostGIS খুব powerful, MySQL এ Spatial support আছে
+- **Typical strength**: PostgreSQL হলো Complex/advanced relational workloads এর জন্য, MySQL হলো Web apps ও simpler relational workloads এর জন্য
+
+বি.দ্র.: MySQL এ CTE ও Window Function আছে MySQL 8.0 থেকে। এর আগের version এ ছিল না।
+
 ### SQL এর সাধারণ data type গুলো কী কী? `CHAR` আর `VARCHAR` এর পার্থক্য কী?
 - সংখ্যা: `INT`, `BIGINT`, `NUMERIC/DECIMAL`, `FLOAT`
 - Text: `CHAR`, `VARCHAR`, `TEXT`
@@ -7189,9 +7209,47 @@ DROP TABLE orders;                               -- table ই নেই
 - **Interview tip**: সব row মুছতে চাইলে এবং trigger/rollback এর দরকার না থাকলে `TRUNCATE`। কিছু row মুছতে বা trigger চালাতে হলে `DELETE`। Table ই আর লাগবে না হলে `DROP`।
 
 ### Primary key এর জন্য `SERIAL`, `IDENTITY` আর `UUID` এর তুলনা
-- `SERIAL`: পুরোনো পদ্ধতি, sequence এর shortcut
-- `GENERATED ALWAYS AS IDENTITY`: আধুনিক ও SQL standard অনুযায়ী, PostgreSQL এ এটাই প্রস্তাবিত
-- `UUID`: globally unique, আন্দাজ করা কঠিন (URL এ id দেখানোর জন্য নিরাপদ), distributed system এ ভালো। কিন্তু বেশি জায়গা নেয় এবং random UUID এ index fragmentation হয়। UUIDv7 (সময় অনুযায়ী ক্রমিক) এ এই সমস্যা কম।
+**SERIAL কী?**
+
+`SERIAL` হলো PostgreSQL-এর একটি pseudo-data type, যেটি automatically incremental integer ID তৈরি করে।
+
+**IDENTITY কী?**
+
+`IDENTITY` হলো PostgreSQL-এর modern standard SQL approach, যেটি automatically numeric ID generate করে। PostgreSQL 10 থেকে এটি available।
+
+**UUID কী?**
+
+UUID-এর পূর্ণরূপ হলো Universally Unique Identifier। এটি একটি 128-bit identifier, যা সাধারণত randomly generate করা হয়। এখানে `SERIAL` বা `IDENTITY`-এর মতো 1, 2, 3 করে increment হয় না।
+
+**কেন ব্যবহার করি?**
+
+- **Distributed Systems**: Multiple servers independently unique ID generate করতে পারে।
+- **No ID Conflict**: আলাদা database থেকে data merge করলেও ID conflict হওয়ার সম্ভাবনা অত্যন্ত কম।
+- **Less Predictable**: Sequential ID-এর মতো সহজে অনুমান করা যায় না (URL এ id দেখানোর জন্য নিরাপদ)।
+- **Microservices**: আলাদা services নিজেদের ID generate করতে পারে।
+
+**Disadvantages:**
+
+- `BIGINT`-এর তুলনায় বেশি storage (16 bytes vs 8 bytes)।
+- Index বড় হয়।
+- Random UUID হলে insert performance কিছুটা কমতে পারে (index fragmentation)।
+
+**কোনটা কখন:**
+
+- `SERIAL`: পুরোনো পদ্ধতি, sequence এর shortcut। নতুন কাজে না ব্যবহার করাই ভালো।
+- `GENERATED ALWAYS AS IDENTITY`: আধুনিক ও SQL standard অনুযায়ী, PostgreSQL এ সাধারণ ক্ষেত্রে এটাই প্রস্তাবিত।
+- `UUID`: distributed system, microservices বা public URL এ id দেখানোর ক্ষেত্রে। UUIDv7 (সময় অনুযায়ী ক্রমিক) এ index fragmentation সমস্যা কম।
+
+```sql
+-- SERIAL (পুরোনো)
+CREATE TABLE a (id SERIAL PRIMARY KEY);
+
+-- IDENTITY (আধুনিক, PostgreSQL 10+)
+CREATE TABLE b (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+
+-- UUID
+CREATE TABLE c (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+```
 
 ### Subquery আর JOIN এর মধ্যে কোনটা ভালো?
 অনেক ক্ষেত্রে optimizer দুটোকে একই রকম plan এ বদলে দেয়। সাধারণ নিয়ম:
@@ -7202,7 +7260,9 @@ DROP TABLE orders;                               -- table ই নেই
 - নিশ্চিত হতে `EXPLAIN ANALYZE` দিয়ে মাপুন
 
 ### CTE (`WITH`) কী? Recursive CTE কী?
-CTE হলো query এর ভেতরে নাম দেওয়া অস্থায়ী result, যা query কে পরিষ্কার ও পড়ার যোগ্য করে।
+**CTE (Common Table Expression)** হলো একটি temporary named result set, যেটি SQL query-এর মধ্যে `WITH` ব্যবহার করে তৈরি করা হয়।
+
+সহজভাবে: বড় SQL query-কে ছোট ছোট readable অংশে ভাগ করার জন্য CTE ব্যবহার করি।
 
 ```sql
 WITH recent AS (
@@ -7211,7 +7271,7 @@ WITH recent AS (
 SELECT user_id, SUM(total) FROM recent GROUP BY user_id;
 ```
 
-**Recursive CTE** hierarchical data (category tree, org chart) এর জন্য:
+**Recursive CTE** হলো এমন একটি CTE, যেটি নিজের result-এর ওপর আবার নিজেই কাজ করে। Hierarchical data (category tree, org chart) এর জন্য ব্যবহার হয়:
 
 ```sql
 WITH RECURSIVE tree AS (
@@ -7312,7 +7372,16 @@ DO UPDATE SET name = EXCLUDED.name;
 ```
 
 ### Constraint গুলো কী কী?
-`NOT NULL`, `UNIQUE`, `PRIMARY KEY`, `FOREIGN KEY`, `CHECK` (শর্ত যাচাই), `DEFAULT`। Application এ validation থাকলেও database এ constraint রাখুন, কারণ এটাই শেষ রক্ষাকবচ।
+**Constraint** হলো Database-এর এমন কিছু rules বা restrictions, যেগুলো table-এর data valid, accurate এবং consistent রাখতে সাহায্য করে।
+
+- `NOT NULL`: NULL value allow করে না
+- `UNIQUE`: Duplicate value allow করে না
+- `PRIMARY KEY`: প্রতিটি row uniquely identify করে
+- `FOREIGN KEY`: অন্য table-এর record-এর সঙ্গে relationship maintain করে
+- `CHECK`: নির্দিষ্ট condition enforce করে
+- `DEFAULT`: Value না দিলে default value দেয়
+
+Application এ validation থাকলেও database এ constraint রাখুন, কারণ এটাই শেষ রক্ষাকবচ।
 
 ```sql
 CREATE TABLE orders (
@@ -7449,9 +7518,23 @@ db.orders.find({ userId: 5 }).explain("executionStats");
 - "covered query" হলে `totalDocsExamined` 0 (index থেকেই উত্তর)
 
 ### Aggregation pipeline কী? প্রধান stage গুলো কী কী?
+MongoDB-তে **Aggregation Pipeline** হলো এমন একটি framework, যার মাধ্যমে একাধিক ধাপে document-এর data process, filter, group, sort, transform এবং analyze করা যায়।
+
 Document গুলো একটির পর একটি stage এর ভেতর দিয়ে গিয়ে রূপান্তরিত হয়, যেমন SQL এর `WHERE + GROUP BY + JOIN + ORDER BY` একসাথে।
 
-প্রধান stage: `$match` (filter), `$group`, `$project`, `$sort`, `$limit`, `$skip`, `$lookup` (join), `$unwind` (array ভাঙা), `$addFields`, `$facet`, `$count`।
+প্রধান stage:
+
+- `$match`: document filter করে (SQL এর `WHERE`)
+- `$group`: নির্দিষ্ট field এর মান অনুযায়ী group করে (`$sum`, `$avg` ইত্যাদি সহ)
+- `$project`: কোন field থাকবে বা নতুন কোন field হবে তা ঠিক করে
+- `$sort`: সাজায়
+- `$limit`: document সংখ্যা সীমিত করে
+- `$skip`: প্রথমের কিছু document বাদ দেয়
+- `$lookup`: অন্য collection এর সাথে join (left outer join)
+- `$unwind`: array কে ভেঙে প্রতিটি element কে আলাদা document বানায়
+- `$count`: document গোনে
+- `$addFields` / `$set`: নতুন field যোগ করে বা বিদ্যমান field বদলায়
+- `$facet`: একই input এ একাধিক pipeline একসাথে চালায় (যেমন result + total count)
 
 ```js
 db.orders.aggregate([
@@ -7505,8 +7588,19 @@ Shard key বাছাইয়ের নিয়ম:
 - ক্রমাগত বাড়তে থাকা মান (যেমন timestamp, auto-increment) সরাসরি ranged key হিসেবে দিলে সব write এক shard এ যায়, তাই **hashed** key বিবেচনা করুন
 
 ### Write concern আর read concern কী?
-- **Write concern** (`w`): write সফল ধরা হবে কতগুলো node এ লেখার পর। `w: 1` শুধু primary, `w: "majority"` বেশিরভাগ node, যা সবচেয়ে নিরাপদ।
-- **Read concern**: কেমন data পড়বে (`local`, `majority`, `snapshot`), অর্থাৎ rollback হয়ে যেতে পারে এমন data পড়বে কিনা।
+**Write Concern কী?**
+
+Write Concern নির্ধারণ করে MongoDB একটি write operation সফল হয়েছে বলে জানানোর আগে কতটুকু acknowledgment বা confirmation চাইবে।
+
+- `w: 1`: শুধু primary node এ লেখা হলেই সফল ধরা হয়
+- `w: "majority"`: বেশিরভাগ node এ লেখা হলে সফল ধরা হয়, যা সবচেয়ে নিরাপদ
+
+**Read Concern কী?**
+
+Read Concern নির্ধারণ করে MongoDB read operation-এর সময় কোন level-এর data consistency বা visibility নিশ্চিত করবে।
+
+- `local`, `majority`, `snapshot` ইত্যাদি level আছে
+- অর্থাৎ rollback হয়ে যেতে পারে এমন data পড়বে কিনা, তা এর মাধ্যমে ঠিক হয়
 
 ### MongoDB তে pagination কীভাবে করবে?
 - `skip().limit()`: সহজ কিন্তু বড় skip এ ধীর (SQL এর OFFSET এর মতোই)
